@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuth } from '../contexts/AuthContext';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
+import Tasks from '../pages/Tasks';
 import Companies from '../pages/Companies';
 import Sites from '../pages/Sites';
 import Missions from '../pages/Missions';
@@ -30,6 +31,7 @@ function AppRoutes() {
           }
         >
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tasks" element={<Tasks />} />
           <Route path="companies" element={<Companies />} />
           <Route path="sites" element={<Sites />} />
           <Route path="missions" element={<Missions />} />
