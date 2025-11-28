@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, FileText, Search } from 'lucide-react';
 import Modal from '../components/Modal';
 
 const initialCompanies = [
@@ -31,6 +31,7 @@ function Companies() {
   const [companies, setCompanies] = useState(initialCompanies);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     contact: '',
@@ -38,6 +39,14 @@ function Companies() {
     address: '',
     description: '',
   });
+
+  // 검색 필터링
+  const filteredCompanies = companies.filter((company) =>
+    company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    company.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    company.contact.includes(searchTerm) ||
+    company.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAdd = () => {
     setEditingCompany(null);
@@ -119,71 +128,102 @@ function Companies() {
         </button>
       </div>
 
-      {/* Companies List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {companies.map((company) => (
-          <div key={company.id} className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <Building2 className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{company.name}</h3>
-                  <p className="text-sm text-gray-500">등록일: {company.createdAt}</p>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEdit(company)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="편집"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(company.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="삭제"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="회사명, 이메일, 연락처, 주소로 검색..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center text-gray-600">
-                <Phone className="h-4 w-4 mr-2" />
-                {company.contact}
-              </div>
-              <div className="flex items-center text-gray-600">
-                <Mail className="h-4 w-4 mr-2" />
-                {company.email}
-              </div>
-              <div className="flex items-start text-gray-600">
-                <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                <span>{company.address}</span>
-              </div>
-              {company.description && (
-                <div className="flex items-start text-gray-600">
-                  <FileText className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>{company.description}</span>
-                </div>
-              )}
-            </div>
+      {/* Companies Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  번호
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  회사명
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  연락처
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  이메일
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  등록일
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  주소
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  사항
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCompanies.map((company, index) => (
+                <tr key={company.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {index + 1}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {company.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {company.contact}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {company.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {company.createdAt}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {company.address}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(company)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="편집"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(company.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200 flex space-x-4 text-sm">
-              <div>
-                <span className="text-gray-600">현장: </span>
-                <span className="font-semibold">{company.siteCount}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">로봇: </span>
-                <span className="font-semibold">{company.robotCount}</span>
-              </div>
-            </div>
+        {/* Empty State */}
+        {filteredCompanies.length === 0 && (
+          <div className="text-center py-12">
+            <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">검색 결과가 없습니다</h3>
+            <p className="mt-1 text-sm text-gray-500">다른 검색어를 시도해보세요.</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Add/Edit Modal */}
