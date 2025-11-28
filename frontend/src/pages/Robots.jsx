@@ -48,14 +48,7 @@ const sites = [
   { id: 2, name: '부산 물류센터 B', companyId: 2 },
 ];
 
-const missions = [
-  { id: 1, name: '안전 순찰 미션 A' },
-  { id: 2, name: '물류 점검 미션' },
-  { id: 3, name: '야간 보안 순찰' },
-];
-
 const robotTypes = ['사족보행', '바퀴이동', '드론'];
-const statusOptions = ['연결끊김', '대기중', '미션 실행 중'];
 
 function Robots() {
   const [robots, setRobots] = useState(initialRobots);
@@ -71,8 +64,6 @@ function Robots() {
     model: '',
     identifier: '',
     serialNumber: '',
-    status: '대기중',
-    currentMission: '',
   });
 
   // 회사 선택시 해당 회사의 사이트만 필터링
@@ -102,8 +93,6 @@ function Robots() {
       model: '',
       identifier: '',
       serialNumber: '',
-      status: '대기중',
-      currentMission: '',
     });
     setIsModalOpen(true);
   };
@@ -119,8 +108,6 @@ function Robots() {
       model: robot.model,
       identifier: robot.identifier,
       serialNumber: robot.serialNumber,
-      status: robot.status,
-      currentMission: robot.currentMission || '',
     });
     setIsModalOpen(true);
   };
@@ -154,7 +141,6 @@ function Robots() {
                 companyName: selectedCompany.name,
                 siteId: parseInt(formData.siteId),
                 siteName: selectedSite.name,
-                currentMission: formData.status === '미션 실행 중' ? formData.currentMission : null,
               }
             : robot
         )
@@ -168,7 +154,8 @@ function Robots() {
         companyName: selectedCompany.name,
         siteId: parseInt(formData.siteId),
         siteName: selectedSite.name,
-        currentMission: formData.status === '미션 실행 중' ? formData.currentMission : null,
+        status: '대기중',
+        currentMission: null,
         createdAt: new Date().toISOString().split('T')[0],
       };
       setRobots([...robots, newRobot]);
@@ -186,13 +173,6 @@ function Robots() {
         ...formData,
         companyId: value,
         siteId: '',
-      });
-    } else if (name === 'status' && value !== '미션 실행 중') {
-      // 상태가 '미션 실행 중'이 아니면 미션 초기화
-      setFormData({
-        ...formData,
-        status: value,
-        currentMission: '',
       });
     } else {
       setFormData({
@@ -529,48 +509,6 @@ function Robots() {
                 placeholder="예: SN-UG2-20250115-001"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                상태 *
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {formData.status === '미션 실행 중' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  실행 중인 미션
-                </label>
-                <select
-                  name="currentMission"
-                  value={formData.currentMission}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-                >
-                  <option value="">미션을 선택하세요</option>
-                  {missions.map((mission) => (
-                    <option key={mission.id} value={mission.name}>
-                      {mission.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
