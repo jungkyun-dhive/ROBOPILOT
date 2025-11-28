@@ -5,6 +5,7 @@ import Dashboard from '../pages/Dashboard';
 import Companies from '../pages/Companies';
 import Sites from '../pages/Sites';
 import Missions from '../pages/Missions';
+import Robots from '../pages/Robots';
 import Users from '../pages/Users';
 import DashboardLayout from '../layouts/DashboardLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -32,6 +33,7 @@ function AppRoutes() {
           <Route path="companies" element={<Companies />} />
           <Route path="sites" element={<Sites />} />
           <Route path="missions" element={<Missions />} />
+          <Route path="robots" element={<Robots />} />
           <Route path="users" element={<Users />} />
         </Route>
       </Routes>

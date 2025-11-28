@@ -30,6 +30,7 @@ const settingsSubMenuItems = [
   { path: '/companies', icon: Building2, label: '회사', minRole: 'SYSTEM_ADMIN' },
   { path: '/sites', icon: MapPin, label: '현장', minRole: 'COMPANY_ADMIN' },
   { path: '/missions', icon: Workflow, label: '미션 관리', minRole: 'OPERATOR' },
+  { path: '/robots', icon: Cpu, label: '로봇 관리', minRole: 'OPERATOR' },
   { path: '/users', icon: Users, label: '사용자 관리', minRole: 'COMPANY_ADMIN' },
   { path: '/settings', icon: Cog, label: '시스템 설정', minRole: 'SYSTEM_ADMIN' },
 ];
