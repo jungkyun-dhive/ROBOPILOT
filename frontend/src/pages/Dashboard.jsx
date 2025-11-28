@@ -1,13 +1,13 @@
-import { Building2, MapPin, Building, Bot } from 'lucide-react';
+import { Building2, MapPin, Users, Drone } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
 import LiveStreamPanel from '../components/LiveStreamPanel';
 
 const stats = [
-  { icon: Building2, value: '3', label: '건물', color: 'blue' },
-  { icon: MapPin, value: '7', label: '현장', color: 'purple' },
-  { icon: Building, value: '10', label: '회사', color: 'orange' },
-  { icon: Bot, value: '12', label: '로봇/드론', color: 'blue' },
+  { icon: Building2, value: '3', label: 'Company', color: 'cyan' },
+  { icon: MapPin, value: '7', label: 'Site', color: 'purple' },
+  { icon: Users, value: '10', label: 'Viewer', color: 'orange' },
+  { icon: Drone, value: '12', label: 'Drone', color: 'blue' },
 ];
 
 const tableColumns = [
@@ -75,7 +75,7 @@ function Dashboard() {
       <div className="flex-1 p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-600">로봇 및 드론 관제 시스템</p>
+          <p className="text-sm text-gray-600">2025-11-19 16:25:17 (KST, UTC+09:00)</p>
         </div>
 
         {/* Stats Grid */}
