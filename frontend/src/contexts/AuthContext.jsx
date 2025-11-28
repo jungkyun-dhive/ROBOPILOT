@@ -16,10 +16,10 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const login = (username, password) => {
+  const login = (email, password) => {
     // 고정된 계정으로 로그인
     const foundUser = MOCK_USERS.find(
-      (u) => u.username === username && u.password === password
+      (u) => u.email === email && u.password === password
     );
 
     if (foundUser) {
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
       return { success: true, user: userWithoutPassword };
     }
 
-    return { success: false, error: '아이디 또는 비밀번호가 일치하지 않습니다.' };
+    return { success: false, error: '이메일 또는 비밀번호가 일치하지 않습니다.' };
   };
 
   const logout = () => {

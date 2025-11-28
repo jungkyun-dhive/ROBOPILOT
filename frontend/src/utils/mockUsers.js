@@ -2,10 +2,9 @@
 export const MOCK_USERS = [
   {
     id: '1',
-    username: 'admin',
+    email: 'system@admin.com',
     password: 'admin123',
     name: '시스템 관리자',
-    email: 'admin@robopilot.com',
     role: 'SYSTEM_ADMIN',
     companyId: null,
     companyName: 'ROBOPILOT',
@@ -13,10 +12,9 @@ export const MOCK_USERS = [
   },
   {
     id: '2',
-    username: 'company1',
-    password: 'company123',
+    email: 'companyA@admin.com',
+    password: 'admin123',
     name: '회사 관리자',
-    email: 'company1@robopilot.com',
     role: 'COMPANY_ADMIN',
     companyId: 'comp-1',
     companyName: 'Smart Factory',
@@ -24,10 +22,9 @@ export const MOCK_USERS = [
   },
   {
     id: '3',
-    username: 'operator1',
-    password: 'operator123',
+    email: 'viewer@companyA.com',
+    password: 'viewer123',
     name: '현장 운영자',
-    email: 'operator1@robopilot.com',
     role: 'OPERATOR',
     companyId: 'comp-1',
     companyName: 'Smart Factory',
@@ -36,7 +33,7 @@ export const MOCK_USERS = [
 ];
 
 export const ROLE_LABELS = {
-  SYSTEM_ADMIN: '시스템 관리자',
-  COMPANY_ADMIN: '회사 관리자',
-  OPERATOR: '운영자'
+  SYSTEM_ADMIN: 'System Admin',
+  COMPANY_ADMIN: 'Company Admin',
+  OPERATOR: 'Viewer'
 };
