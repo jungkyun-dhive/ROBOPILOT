@@ -22,8 +22,8 @@ export const MOCK_USERS = [
   },
   {
     id: '3',
-    email: 'viewer@companyA.com',
-    password: 'viewer123',
+    email: 'operator@companyA.com',
+    password: 'operator123',
     name: '현장 운영자',
     role: 'OPERATOR',
     companyId: 'comp-1',
@@ -35,5 +35,5 @@ export const MOCK_USERS = [
 export const ROLE_LABELS = {
   SYSTEM_ADMIN: 'System Admin',
   COMPANY_ADMIN: 'Company Admin',
-  OPERATOR: 'Viewer'
+  OPERATOR: 'Operator'
 };
