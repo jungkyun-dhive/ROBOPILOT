@@ -1,4 +1,4 @@
-import { Building2, MapPin, Users, Drone } from 'lucide-react';
+import { Building2, MapPin, Users, Bot } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
 import LiveStreamPanel from '../components/LiveStreamPanel';
@@ -7,7 +7,7 @@ const stats = [
   { icon: Building2, value: '3', label: 'Company', color: 'cyan' },
   { icon: MapPin, value: '7', label: 'Site', color: 'purple' },
   { icon: Users, value: '10', label: 'Viewer', color: 'orange' },
-  { icon: Drone, value: '12', label: 'Drone', color: 'blue' },
+  { icon: Bot, value: '12', label: 'Robot', color: 'blue' },
 ];
 
 const tableColumns = [
