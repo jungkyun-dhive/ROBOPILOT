@@ -6,7 +6,7 @@ import LiveStreamPanel from '../components/LiveStreamPanel';
 const stats = [
   { icon: Building2, value: '3', label: 'Company', color: 'cyan' },
   { icon: MapPin, value: '7', label: 'Site', color: 'purple' },
-  { icon: Users, value: '10', label: 'Viewer', color: 'orange' },
+  { icon: Users, value: '10', label: 'User', color: 'orange' },
   { icon: Bot, value: '12', label: 'Robot', color: 'blue' },
 ];
 
