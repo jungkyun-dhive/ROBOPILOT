@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ROLE_LABELS } from '../utils/mockUsers';
 
 const menuItems = [
-  { path: '/dashboard', icon: LayoutDashboard, label: '홈보드', minRole: 'OPERATOR' },
+  { path: '/dashboard', icon: LayoutDashboard, label: '홈피드', minRole: 'OPERATOR' },
   { path: '/companies', icon: Building2, label: '회사', minRole: 'SYSTEM_ADMIN' },
   { path: '/sites', icon: MapPin, label: '현장', minRole: 'COMPANY_ADMIN' },
   { path: '/missions', icon: Workflow, label: '미션 관리', minRole: 'OPERATOR' },
