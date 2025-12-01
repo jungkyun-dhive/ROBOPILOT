@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity } from 'lucide-react';
+import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity, AlertOctagon } from 'lucide-react';
 
 // Mock data
 const companies = [
@@ -323,6 +323,10 @@ function Tasks() {
                         </button>
                       </div>
                     </div>
+                    <button className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium flex items-center justify-center gap-2">
+                      <AlertOctagon className="h-4 w-4" />
+                      비상 정지
+                    </button>
                   </div>
                 )}
               </div>
