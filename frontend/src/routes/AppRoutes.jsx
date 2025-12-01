@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Tasks from '../pages/Tasks';
+import Video from '../pages/Video';
 import Companies from '../pages/Companies';
 import Sites from '../pages/Sites';
 import Missions from '../pages/Missions';
@@ -32,6 +33,7 @@ function AppRoutes() {
         >
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="video" element={<Video />} />
           <Route path="companies" element={<Companies />} />
           <Route path="sites" element={<Sites />} />
           <Route path="missions" element={<Missions />} />
