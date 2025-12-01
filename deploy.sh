@@ -23,7 +23,7 @@ npm run build
 # 3. Backend 빌드
 echo "3. Backend 빌드 중..."
 cd ../backend
-./mvnw clean package -DskipTests
+mvn clean package -DskipTests
 
 # 4. 기존 프로세스 중지
 echo "4. 기존 서비스 중지..."
