@@ -47,8 +47,8 @@ echo "✓ 모든 필수 소프트웨어가 설치되어 있습니다."
 echo "2. 배포 디렉토리 생성 중..."
 sudo mkdir -p /opt/robopilot
 sudo mkdir -p /var/www/robopilot
-sudo chown -R ubuntu:ubuntu /opt/robopilot
-sudo chown -R ubuntu:ubuntu /var/www/robopilot
+sudo chown -R ec2-user:ec2-user /opt/robopilot
+sudo chown -R ec2-user:ec2-user /var/www/robopilot
 
 # 3. Nginx 설정
 echo "3. Nginx 설정 중..."

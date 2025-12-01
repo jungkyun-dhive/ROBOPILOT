@@ -11,7 +11,7 @@ echo "======================================"
 
 # 1. 저장소 업데이트
 echo "1. Git 저장소 업데이트..."
-cd /home/ubuntu/ROBOPILOT
+cd /home/ec2-user/ROBOPILOT
 git pull origin main
 
 # 2. Frontend 빌드

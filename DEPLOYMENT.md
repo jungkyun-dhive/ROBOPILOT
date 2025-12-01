@@ -4,7 +4,7 @@
 
 ### 1. EC2 인스턴스 접속
 ```bash
-ssh -i your-key.pem ubuntu@13.125.59.147
+ssh -i your-key.pem ec2-user@13.125.59.147
 ```
 
 ### 2. 필수 소프트웨어 설치
@@ -45,11 +45,11 @@ cd ROBOPILOT
 ```bash
 # Backend 배포 디렉토리 생성
 sudo mkdir -p /opt/robopilot
-sudo chown ubuntu:ubuntu /opt/robopilot
+sudo chown ec2-user:ec2-user /opt/robopilot
 
 # Frontend 배포 디렉토리 생성
 sudo mkdir -p /var/www/robopilot
-sudo chown ubuntu:ubuntu /var/www/robopilot
+sudo chown ec2-user:ec2-user /var/www/robopilot
 ```
 
 ### 3. Nginx 설정
