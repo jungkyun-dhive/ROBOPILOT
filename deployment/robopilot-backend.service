@@ -1,0 +1,21 @@
+[Unit]
+Description=ROBOPILOT Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/robopilot
+ExecStart=/usr/bin/java -jar /opt/robopilot/robopilot-backend.jar
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robopilot-backend
+
+# Environment variables
+Environment="SPRING_PROFILES_ACTIVE=prod"
+Environment="SERVER_PORT=8080"
+
+[Install]
+WantedBy=multi-user.target
