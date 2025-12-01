@@ -263,7 +263,9 @@ function Tasks() {
             {/* Control Panel */}
             {selectedRobotId && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">드론 제어</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  {selectedRobot?.type === '드론' ? '드론 제어' : '로봇 제어'}
+                </h3>
                 {selectedRobot?.type === '드론' ? (
                   <div className="space-y-3">
                     {/* Drone Controls */}
@@ -329,7 +331,9 @@ function Tasks() {
             {/* Robot Status */}
             {selectedRobotId && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">드론 상태</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  {selectedRobot?.type === '드론' ? '드론 상태' : '로봇 상태'}
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">상태</span>
