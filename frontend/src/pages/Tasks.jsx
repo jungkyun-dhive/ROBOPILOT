@@ -89,7 +89,7 @@ function Tasks() {
     <div className="h-screen flex flex-col bg-gray-100">
       {/* Top Selection Bar */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {/* Company Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -182,6 +182,33 @@ function Tasks() {
               ))}
             </select>
           </div>
+
+          {/* Mission Start Button */}
+          <div className="flex items-end">
+            <button
+              onClick={handleMissionToggle}
+              disabled={!canStartMission}
+              className={`w-full px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+                !canStartMission
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : missionStarted
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {missionStarted ? (
+                <>
+                  <Square className="h-4 w-4" />
+                  작업 중지
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  작업 시작
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -240,89 +267,66 @@ function Tasks() {
         {/* Right Sidebar */}
         <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Mission Start Button */}
-            <div>
-              <button
-                onClick={handleMissionToggle}
-                disabled={!canStartMission}
-                className={`w-full px-4 py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-                  !canStartMission
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : missionStarted
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {missionStarted ? (
-                  <>
-                    <Square className="h-4 w-4" />
-                    작업 중지
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" />
-                    작업 시작
-                  </>
-                )}
-              </button>
-            </div>
-
             {/* Robot Status and Operation Info */}
-            {selectedRobotId && (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Robot Status */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">상태</span>
-                      <span className={`text-xs font-medium mt-1 ${missionStarted ? 'text-green-600' : 'text-gray-900'}`}>
-                        {missionStarted ? '작업 중' : '대기'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">배터리</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">85%</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">네트워크 세기</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">-</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">GPS 세기</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">-</span>
-                    </div>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Robot Status */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">상태</span>
+                    <span className={`text-xs font-medium mt-1 ${selectedRobotId && missionStarted ? 'text-green-600' : 'text-gray-900'}`}>
+                      {selectedRobotId ? (missionStarted ? '작업 중' : '대기') : '-'}
+                    </span>
                   </div>
-                </div>
-
-                {/* Operation Info */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">고도</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">0m/s</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">속도</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">0m/s</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">운행 시간</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">
-                        {missionStarted ? '00:00:00' : '-'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-600">시작 시간</span>
-                      <span className="text-xs font-medium text-gray-900 mt-1">
-                        {missionStarted ? new Date().toLocaleString('ko-KR') : '-'}
-                      </span>
-                    </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">배터리</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">
+                      {selectedRobotId ? '85%' : '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">네트워크 세기</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">-</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">GPS 세기</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">-</span>
                   </div>
                 </div>
               </div>
-            )}
+
+              {/* Operation Info */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">고도</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">
+                      {selectedRobotId ? '0m/s' : '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">속도</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">
+                      {selectedRobotId ? '0m/s' : '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">운행 시간</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">
+                      {selectedRobotId && missionStarted ? '00:00:00' : '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-600">시작 시간</span>
+                    <span className="text-xs font-medium text-gray-900 mt-1">
+                      {selectedRobotId && missionStarted ? new Date().toLocaleString('ko-KR') : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* AI Modules Section */}
             <div>
