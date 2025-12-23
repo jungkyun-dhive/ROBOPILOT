@@ -12,7 +12,7 @@ echo "======================================"
 # 1. 저장소 업데이트
 echo "1. Git 저장소 업데이트..."
 cd /home/ec2-user/ROBOPILOT
-git pull origin claude/safety-monitoring-interface-01PA1ZSwksyp5gEAej65Ja3T
+git pull origin claude/add-emergency-stop-button-01YWYoUsmDCSMS7Szf92D72Q
 
 # 2. Frontend 빌드
 echo "2. Frontend 빌드 중..."
