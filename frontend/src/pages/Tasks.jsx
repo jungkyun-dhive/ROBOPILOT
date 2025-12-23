@@ -330,12 +330,7 @@ function Tasks() {
 
             {/* AI Modules Section */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-900">AI 모듈</h3>
-                <button className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
-                  적용하기
-                </button>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 모듈</h3>
               <div className="space-y-2">
                 {aiDetections.map((module) => (
                   <label
