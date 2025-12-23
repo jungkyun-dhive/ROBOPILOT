@@ -87,138 +87,135 @@ function Tasks() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
-      {/* Top Selection Bar */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex gap-4 items-end">
-          {/* Left side: Selection dropdowns */}
-          <div className="flex-1 grid grid-cols-4 gap-4">
-            {/* Company Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <Building2 className="inline h-4 w-4 mr-1" />
-                회사
-              </label>
-              <select
-                value={selectedCompanyId || (userCompanyId || '')}
-                onChange={(e) => {
-                  setSelectedCompanyId(e.target.value);
-                  setSelectedSiteId('');
-                  setSelectedMissionId('');
-                  setSelectedRobotId('');
-                }}
-                disabled={!isCompanySelectable}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
-              >
-                <option value="">회사를 선택하세요</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Site Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <MapPin className="inline h-4 w-4 mr-1" />
-                현장
-              </label>
-              <select
-                value={selectedSiteId}
-                onChange={(e) => {
-                  setSelectedSiteId(e.target.value);
-                  setSelectedMissionId('');
-                  setSelectedRobotId('');
-                }}
-                disabled={!selectedCompanyId && !userCompanyId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">현장을 선택하세요</option>
-                {availableSites.map((site) => (
-                  <option key={site.id} value={site.id}>
-                    {site.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Mission Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <Workflow className="inline h-4 w-4 mr-1" />
-                미션
-              </label>
-              <select
-                value={selectedMissionId}
-                onChange={(e) => setSelectedMissionId(e.target.value)}
-                disabled={!selectedSiteId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">미션을 선택하세요</option>
-                {availableMissions.map((mission) => (
-                  <option key={mission.id} value={mission.id}>
-                    {mission.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Robot Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <Bot className="inline h-4 w-4 mr-1" />
-                로봇
-              </label>
-              <select
-                value={selectedRobotId}
-                onChange={(e) => setSelectedRobotId(e.target.value)}
-                disabled={!selectedSiteId}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">로봇을 선택하세요</option>
-                {availableRobots.map((robot) => (
-                  <option key={robot.id} value={robot.id}>
-                    {robot.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Right side: Mission Start Button */}
-          <div>
-            <button
-              onClick={handleMissionToggle}
-              disabled={!canStartMission}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${
-                !canStartMission
-                  ? 'bg-gray-500 text-white cursor-not-allowed'
-                  : missionStarted
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            >
-              {missionStarted ? (
-                <>
-                  <Square className="h-4 w-4" />
-                  작업 중지
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4" />
-                  작업 시작
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Center and Bottom Section */}
+        {/* Left: Center and Bottom Section */}
         <div className="flex-1 flex flex-col p-4 space-y-4">
+          {/* Top Selection Bar with Mission Start Button */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <div className="flex gap-3 items-end">
+              {/* Company Selection */}
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <Building2 className="inline h-3 w-3 mr-1" />
+                  회사
+                </label>
+                <select
+                  value={selectedCompanyId || (userCompanyId || '')}
+                  onChange={(e) => {
+                    setSelectedCompanyId(e.target.value);
+                    setSelectedSiteId('');
+                    setSelectedMissionId('');
+                    setSelectedRobotId('');
+                  }}
+                  disabled={!isCompanySelectable}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
+                >
+                  <option value="">회사 선택</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Site Selection */}
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <MapPin className="inline h-3 w-3 mr-1" />
+                  현장
+                </label>
+                <select
+                  value={selectedSiteId}
+                  onChange={(e) => {
+                    setSelectedSiteId(e.target.value);
+                    setSelectedMissionId('');
+                    setSelectedRobotId('');
+                  }}
+                  disabled={!selectedCompanyId && !userCompanyId}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">현장 선택</option>
+                  {availableSites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mission Selection */}
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <Workflow className="inline h-3 w-3 mr-1" />
+                  미션
+                </label>
+                <select
+                  value={selectedMissionId}
+                  onChange={(e) => setSelectedMissionId(e.target.value)}
+                  disabled={!selectedSiteId}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">미션 선택</option>
+                  {availableMissions.map((mission) => (
+                    <option key={mission.id} value={mission.id}>
+                      {mission.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Robot Selection */}
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <Bot className="inline h-3 w-3 mr-1" />
+                  로봇
+                </label>
+                <select
+                  value={selectedRobotId}
+                  onChange={(e) => setSelectedRobotId(e.target.value)}
+                  disabled={!selectedSiteId}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">로봇 선택</option>
+                  {availableRobots.map((robot) => (
+                    <option key={robot.id} value={robot.id}>
+                      {robot.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mission Start Button */}
+              <div>
+                <button
+                  onClick={handleMissionToggle}
+                  disabled={!canStartMission}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${
+                    !canStartMission
+                      ? 'bg-gray-500 text-white cursor-not-allowed'
+                      : missionStarted
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {missionStarted ? (
+                    <>
+                      <Square className="h-4 w-4" />
+                      작업 중지
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      작업 시작
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Video Feed */}
           <div className="flex-1 bg-black rounded-lg overflow-hidden relative">
             {selectedRobotId ? (
