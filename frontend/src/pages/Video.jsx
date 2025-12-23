@@ -80,6 +80,8 @@ function Video() {
   const [selectedAiModules, setSelectedAiModules] = useState(['A', 'C', 'D']);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [timeOffset1, setTimeOffset1] = useState(0);
+  const [timeOffset2, setTimeOffset2] = useState(0);
 
   const handleVideoSelect = (videoId) => {
     if (selectedVideos.includes(videoId)) {
@@ -256,23 +258,59 @@ function Video() {
   const renderComparisonVideos = () => {
     const video1 = selectedVideoData[0];
     const video2 = selectedVideoData[1];
+    const offsets = [timeOffset1, timeOffset2];
+    const setOffsets = [setTimeOffset1, setTimeOffset2];
 
     return (
       <div className="flex-1 flex flex-col p-4 space-y-4">
-        {/* Two Video Players */}
+        {/* Two Video Players with Time Offset Controls */}
         <div className="flex-1 flex gap-4">
           {[video1, video2].map((video, index) => (
-            <div key={index} className="flex-1 bg-gray-800 rounded-lg overflow-hidden relative flex items-center justify-center">
-              <button className="absolute top-4 left-4 px-3 py-1.5 bg-gray-700 bg-opacity-80 text-white text-sm font-medium rounded flex items-center gap-2">
-                <Play className="h-4 w-4" />
-                PLAY
-              </button>
-              <div className="text-center">
-                <Play className="h-12 w-12 text-gray-500 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">영상 {index + 1}</p>
+            <div key={index} className="flex-1 flex flex-col gap-2">
+              {/* Video Player */}
+              <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden relative flex items-center justify-center">
+                <button className="absolute top-4 left-4 px-3 py-1.5 bg-gray-700 bg-opacity-80 text-white text-sm font-medium rounded flex items-center gap-2">
+                  <Play className="h-4 w-4" />
+                  PLAY
+                </button>
+                <div className="text-center">
+                  <Play className="h-12 w-12 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">영상 {index + 1}</p>
+                </div>
+                <div className="absolute bottom-2 left-0 right-0 text-center">
+                  <span className="text-white text-xs">{formatTime(0)} / {formatTime(video?.duration || 0)}</span>
+                </div>
               </div>
-              <div className="absolute bottom-2 left-0 right-0 text-center">
-                <span className="text-white text-xs">{formatTime(0)} / {formatTime(video?.duration || 0)}</span>
+
+              {/* Time Offset Control */}
+              <div className="bg-white rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">시간 조정</span>
+                  <div className="flex-1 relative">
+                    {/* Center marker */}
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 -translate-x-1/2 pointer-events-none" />
+                    <input
+                      type="range"
+                      min="-30"
+                      max="30"
+                      value={offsets[index]}
+                      onChange={(e) => setOffsets[index](parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                      style={{
+                        background: `linear-gradient(to right,
+                          #e5e7eb 0%,
+                          #e5e7eb ${((offsets[index] + 30) / 60) * 50}%,
+                          #3b82f6 ${((offsets[index] + 30) / 60) * 50}%,
+                          #3b82f6 50%,
+                          #e5e7eb 50%,
+                          #e5e7eb 100%)`
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-900 w-12 text-right">
+                    {offsets[index] > 0 ? '+' : ''}{offsets[index]}초
+                  </span>
+                </div>
               </div>
             </div>
           ))}
