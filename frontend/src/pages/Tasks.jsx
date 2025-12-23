@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity, AlertOctagon } from 'lucide-react';
+import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity, AlertOctagon, Play, Square } from 'lucide-react';
 
 // Mock data
 const companies = [
@@ -39,6 +39,7 @@ function Tasks() {
   const [selectedMissionId, setSelectedMissionId] = useState('');
   const [selectedRobotId, setSelectedRobotId] = useState('');
   const [aiDetections, setAiDetections] = useState(aiModules);
+  const [missionStarted, setMissionStarted] = useState(false);
 
   // 권한에 따라 회사 선택 가능 여부 결정
   const isCompanySelectable = user?.role === 'SYSTEM_ADMIN';
@@ -75,6 +76,13 @@ function Tasks() {
         module.id === moduleId ? { ...module, enabled: !module.enabled } : module
       )
     );
+  };
+
+  // 작업 시작 버튼 활성화 조건
+  const canStartMission = (selectedCompanyId || userCompanyId) && selectedSiteId && selectedMissionId && selectedRobotId;
+
+  const handleMissionToggle = () => {
+    setMissionStarted(!missionStarted);
   };
 
   return (
@@ -232,6 +240,90 @@ function Tasks() {
         {/* Right Sidebar */}
         <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
           <div className="p-4 space-y-6">
+            {/* Mission Start Button */}
+            <div>
+              <button
+                onClick={handleMissionToggle}
+                disabled={!canStartMission}
+                className={`w-full px-4 py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+                  !canStartMission
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : missionStarted
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {missionStarted ? (
+                  <>
+                    <Square className="h-4 w-4" />
+                    작업 중지
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    작업 시작
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Robot Status and Operation Info */}
+            {selectedRobotId && (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Robot Status */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">상태</span>
+                      <span className={`text-xs font-medium mt-1 ${missionStarted ? 'text-green-600' : 'text-gray-900'}`}>
+                        {missionStarted ? '작업 중' : '대기'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">배터리</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">85%</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">네트워크 세기</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">-</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">GPS 세기</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">-</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operation Info */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">고도</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">0m/s</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">속도</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">0m/s</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">운행 시간</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">
+                        {missionStarted ? '00:00:00' : '-'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-600">시작 시간</span>
+                      <span className="text-xs font-medium text-gray-900 mt-1">
+                        {missionStarted ? new Date().toLocaleString('ko-KR') : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* AI Modules Section */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -329,54 +421,6 @@ function Tasks() {
                     </button>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Robot Status */}
-            {selectedRobotId && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  {selectedRobot?.type === '드론' ? '드론 상태' : '로봇 상태'}
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">상태</span>
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                      수행 중
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">배터리</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500" style={{ width: '85%' }}></div>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">85%</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">고도</span>
-                    <span className="text-sm font-medium text-gray-900">0m</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">속도</span>
-                    <span className="text-sm font-medium text-gray-900">0m/s</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">위치 신호</span>
-                    <span className="text-sm font-medium text-gray-900">양호</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">운행 시간</span>
-                    <span className="text-sm font-medium text-gray-900">00:40:23</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">시작 시간</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      2025-11-19 16:25:17 (KST)
-                    </span>
-                  </div>
-                </div>
               </div>
             )}
           </div>
