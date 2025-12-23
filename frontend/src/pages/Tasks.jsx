@@ -89,7 +89,7 @@ function Tasks() {
     <div className="h-screen flex flex-col bg-gray-100">
       {/* Top Selection Bar */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {/* Company Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -182,18 +182,24 @@ function Tasks() {
               ))}
             </select>
           </div>
+        </div>
+      </div>
 
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Center and Bottom Section */}
+        <div className="flex-1 flex flex-col p-4 space-y-4">
           {/* Mission Start Button */}
-          <div className="flex items-end">
+          <div className="flex justify-end">
             <button
               onClick={handleMissionToggle}
               disabled={!canStartMission}
-              className={`w-full px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
                 !canStartMission
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-gray-500 text-white cursor-not-allowed'
                   : missionStarted
                   ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
               }`}
             >
               {missionStarted ? (
@@ -209,13 +215,7 @@ function Tasks() {
               )}
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Center and Bottom Section */}
-        <div className="flex-1 flex flex-col p-4 space-y-4">
           {/* Video Feed */}
           <div className="flex-1 bg-black rounded-lg overflow-hidden relative">
             {selectedRobotId ? (
