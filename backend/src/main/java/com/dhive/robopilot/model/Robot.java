@@ -31,6 +31,11 @@ public class Robot {
     private String model; // DJI_MATRICE_4E, UNITREE_GO2
 
     @Column(nullable = false)
+    private String companyId;
+
+    private String companyName;
+
+    @Column(nullable = false)
     private String siteId;
 
     private String siteName;

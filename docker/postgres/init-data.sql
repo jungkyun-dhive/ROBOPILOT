@@ -38,44 +38,44 @@ VALUES
      '경기도 성남시', '최지영', 'pangyo@sktelecom.com', 37.3996, 127.1009, 'ACTIVE', NOW(), NOW());
 
 -- 3. 로봇(드론) 데이터 (8개)
-INSERT INTO robots (id, name, type, model, site_id, site_name, status, battery_level, latitude, longitude, altitude, speed, stream_url, last_heartbeat, created_at, updated_at)
+INSERT INTO robots (id, name, type, model, company_id, company_name, site_id, site_name, status, battery_level, latitude, longitude, altitude, speed, stream_url, last_heartbeat, created_at, updated_at)
 VALUES
     -- FPT 하노이 (1대)
     ('drone-fpt-hn-01', 'Matrice-4E-HN01', 'DRONE', 'DJI_MATRICE_4E',
-     'site-fpt-hanoi', 'FPT 하노이 본사', 'OFFLINE', 85, 21.0285, 105.8542, 0, 0,
+     'fpt-software-001', 'FPT Software', 'site-fpt-hanoi', 'FPT 하노이 본사', 'OFFLINE', 85, 21.0285, 105.8542, 0, 0,
      'rtsp://drone-hn01.fpt.local/stream', NOW(), NOW(), NOW()),
 
     -- FPT 호치민 (1대)
     ('drone-fpt-hcm-01', 'Mavic-3E-HCM01', 'DRONE', 'DJI_MAVIC_3E',
-     'site-fpt-hcm', 'FPT 호치민 지사', 'OFFLINE', 92, 10.7756, 106.7019, 0, 0,
+     'fpt-software-001', 'FPT Software', 'site-fpt-hcm', 'FPT 호치민 지사', 'OFFLINE', 92, 10.7756, 106.7019, 0, 0,
      'rtsp://drone-hcm01.fpt.local/stream', NOW(), NOW(), NOW()),
 
     -- 현대중공업 울산 (2대)
     ('drone-hhi-uls-01', 'Matrice-300-ULS01', 'DRONE', 'DJI_MATRICE_300',
-     'site-hhi-ulsan', '울산 조선소', 'ONLINE', 78, 35.5372, 129.3414, 0, 0,
+     'hyundai-heavy-001', '현대중공업', 'site-hhi-ulsan', '울산 조선소', 'ONLINE', 78, 35.5372, 129.3414, 0, 0,
      'rtsp://drone-uls01.hhi.local/stream', NOW(), NOW(), NOW()),
 
     ('drone-hhi-uls-02', 'Matrice-300-ULS02', 'DRONE', 'DJI_MATRICE_300',
-     'site-hhi-ulsan', '울산 조선소', 'CHARGING', 45, 35.5375, 129.3417, 0, 0,
+     'hyundai-heavy-001', '현대중공업', 'site-hhi-ulsan', '울산 조선소', 'CHARGING', 45, 35.5375, 129.3417, 0, 0,
      'rtsp://drone-uls02.hhi.local/stream', NOW(), NOW(), NOW()),
 
     -- 현대중공업 군산 (1대)
     ('drone-hhi-gun-01', 'Matrice-4E-GUN01', 'DRONE', 'DJI_MATRICE_4E',
-     'site-hhi-gunsan', '군산 조선소', 'OFFLINE', 88, 35.9784, 126.7365, 0, 0,
+     'hyundai-heavy-001', '현대중공업', 'site-hhi-gunsan', '군산 조선소', 'OFFLINE', 88, 35.9784, 126.7365, 0, 0,
      'rtsp://drone-gun01.hhi.local/stream', NOW(), NOW(), NOW()),
 
     -- SK텔레콤 본사 (1대)
     ('drone-skt-seo-01', 'Air-2S-SEO01', 'DRONE', 'DJI_AIR_2S',
-     'site-skt-ttower', 'T타워 본사', 'ONLINE', 95, 37.5665, 126.9780, 0, 0,
+     'sk-telecom-001', 'SK텔레콤', 'site-skt-ttower', 'T타워 본사', 'ONLINE', 95, 37.5665, 126.9780, 0, 0,
      'rtsp://drone-seo01.skt.local/stream', NOW(), NOW(), NOW()),
 
     -- SK텔레콤 판교 (2대)
     ('drone-skt-pan-01', 'Matrice-4E-PAN01', 'DRONE', 'DJI_MATRICE_4E',
-     'site-skt-pangyo', '판교 R&D 센터', 'ONLINE', 100, 37.3996, 127.1009, 0, 0,
+     'sk-telecom-001', 'SK텔레콤', 'site-skt-pangyo', '판교 R&D 센터', 'ONLINE', 100, 37.3996, 127.1009, 0, 0,
      'rtsp://drone-pan01.skt.local/stream', NOW(), NOW(), NOW()),
 
     ('drone-skt-pan-02', 'Mini-3-PAN02', 'DRONE', 'DJI_MINI_3_PRO',
-     'site-skt-pangyo', '판교 R&D 센터', 'OFFLINE', 65, 37.4000, 127.1015, 0, 0,
+     'sk-telecom-001', 'SK텔레콤', 'site-skt-pangyo', '판교 R&D 센터', 'OFFLINE', 65, 37.4000, 127.1015, 0, 0,
      'rtsp://drone-pan02.skt.local/stream', NOW(), NOW(), NOW());
 
 -- 4. 미션 데이터 (6개)
