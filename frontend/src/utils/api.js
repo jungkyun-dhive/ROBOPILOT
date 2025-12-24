@@ -1,5 +1,7 @@
 // API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// Use relative URL in production, absolute URL in development
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:8080/api');
 
 // API Client
 class ApiClient {
