@@ -102,16 +102,57 @@ if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
     exit 1
 fi
 
-# 6. 잠시 대기 (초기 스크립트 실행 시간)
-echo "6. 초기 데이터 로딩 대기 중..."
-sleep 3
+# 6. 백엔드 시작 (테이블 생성)
+echo "6. 백엔드 시작하여 테이블 생성 중..."
+$DOCKER_COMPOSE up -d backend
 
-# 7. 데이터 확인
+# 7. 백엔드가 테이블을 생성할 때까지 대기
+echo "7. 백엔드 준비 대기 중 (테이블 생성)..."
+echo "   (이 과정은 30-60초 정도 걸릴 수 있습니다)"
+sleep 10
+
+# 테이블 생성 확인
+MAX_TABLE_WAIT=50
+TABLE_WAIT=0
+while [ $TABLE_WAIT -lt $MAX_TABLE_WAIT ]; do
+    TABLE_COUNT=$(docker exec "$CONTAINER_NAME" psql -U robopilot -d robopilot -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+
+    if [ -n "$TABLE_COUNT" ] && [ "$TABLE_COUNT" -ge 5 ]; then
+        echo ""
+        echo "✅ 테이블 생성 완료! (${TABLE_COUNT}개 테이블)"
+        break
+    fi
+    echo -n "."
+    sleep 1
+    TABLE_WAIT=$((TABLE_WAIT + 1))
+done
+
+if [ $TABLE_WAIT -eq $MAX_TABLE_WAIT ]; then
+    echo ""
+    echo "⚠️  Warning: 테이블 생성에 시간이 오래 걸립니다."
+    echo "백엔드 로그를 확인해보세요:"
+    echo "  $DOCKER_COMPOSE logs backend"
+fi
+
+# 8. 초기 데이터 로드
 echo ""
-echo "7. 초기화된 데이터 확인:"
+echo "8. 초기 데이터 로드 중..."
+if docker exec -i "$CONTAINER_NAME" psql -U robopilot -d robopilot < docker/postgres/init-data.sql 2>/dev/null; then
+    echo "✅ 초기 데이터 로드 완료!"
+else
+    echo "❌ Error: 초기 데이터 로드 실패"
+    echo ""
+    echo "수동으로 로드하세요:"
+    echo "  docker exec -i $CONTAINER_NAME psql -U robopilot -d robopilot < docker/postgres/init-data.sql"
+    exit 1
+fi
+
+# 9. 데이터 확인
+echo ""
+echo "9. 초기화된 데이터 확인:"
 echo ""
 
-if docker exec "$CONTAINER_NAME" psql -U robopilot -d robopilot -c "
+docker exec "$CONTAINER_NAME" psql -U robopilot -d robopilot -c "
 SELECT
     '회사' as 구분, COUNT(*)::text as 개수 FROM companies
 UNION ALL
@@ -122,17 +163,7 @@ UNION ALL
 SELECT '미션', COUNT(*)::text FROM missions
 UNION ALL
 SELECT '사용자', COUNT(*)::text FROM users;
-" 2>/dev/null; then
-    :
-else
-    echo "⚠️  Warning: 데이터 확인 실패. 테이블이 아직 생성되지 않았을 수 있습니다."
-    echo ""
-    echo "백엔드가 시작되면 자동으로 테이블이 생성됩니다:"
-    echo "  $DOCKER_COMPOSE up -d backend"
-    echo ""
-    echo "또는 수동으로 초기 데이터를 로드하세요:"
-    echo "  docker exec -i $CONTAINER_NAME psql -U robopilot -d robopilot < docker/postgres/init-data.sql"
-fi
+"
 
 echo ""
 echo "======================================"
