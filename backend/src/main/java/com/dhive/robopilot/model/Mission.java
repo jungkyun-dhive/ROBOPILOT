@@ -25,6 +25,11 @@ public class Mission {
     private String name;
 
     @Column(nullable = false)
+    private String companyId;
+
+    private String companyName;
+
+    @Column(nullable = false)
     private String siteId;
 
     private String siteName;
