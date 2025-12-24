@@ -2,6 +2,24 @@ spring:
   application:
     name: robopilot
 
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:robopilot}
+    username: ${DB_USER:robopilot}
+    password: ${DB_PASSWORD:robopilot}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
   # AWS Configuration
   cloud:
     aws:
