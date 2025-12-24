@@ -1,58 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Workflow, Building2, MapPin, Bot, Clock, FileText, Search } from 'lucide-react';
 import Modal from '../components/Modal';
-
-const initialMissions = [
-  {
-    id: 1,
-    name: '안전 순찰 미션 A',
-    companyId: 1,
-    companyName: 'Smart Factory',
-    siteId: 1,
-    siteName: '서울 건설현장 A',
-    robotId: 1,
-    robotName: 'Unitree GO2-01',
-    type: '순찰',
-    schedule: '매일 09:00',
-    description: '건설현장 안전 점검 순찰',
-    createdAt: '2025-01-20',
-  },
-  {
-    id: 2,
-    name: '물류 점검 미션',
-    companyId: 2,
-    companyName: 'Seoul Warehouse',
-    siteId: 2,
-    siteName: '부산 물류센터 B',
-    robotId: 2,
-    robotName: 'Matrice 4E-01',
-    type: '점검',
-    schedule: '매일 14:00',
-    description: '물류 창고 재고 점검',
-    createdAt: '2025-02-15',
-  },
-];
-
-// Mock data from other pages
-const companies = [
-  { id: 1, name: 'Smart Factory' },
-  { id: 2, name: 'Seoul Warehouse' },
-];
-
-const sites = [
-  { id: 1, name: '서울 건설현장 A', companyId: 1 },
-  { id: 2, name: '부산 물류센터 B', companyId: 2 },
-];
-
-const robots = [
-  { id: 1, name: 'Unitree GO2-01', siteId: 1 },
-  { id: 2, name: 'Matrice 4E-01', siteId: 2 },
-];
+import { missionApi, companyApi, siteApi, robotApi } from '../utils/api';
 
 const missionTypes = ['순찰', '점검', '배송', '청소', '모니터링'];
 
 function Missions() {
-  const [missions, setMissions] = useState(initialMissions);
+  const [missions, setMissions] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [robots, setRobots] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMission, setEditingMission] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,24 +24,71 @@ function Missions() {
     description: '',
   });
 
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [missionsData, companiesData, sitesData, robotsData] = await Promise.all([
+        missionApi.getAll(),
+        companyApi.getAll(),
+        siteApi.getAll(),
+        robotApi.getAll(),
+      ]);
+      setMissions(missionsData || []);
+      setCompanies(companiesData || []);
+      setSites(sitesData || []);
+      setRobots(robotsData || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper functions
+  const getCompanyName = (companyId) => {
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : '-';
+  };
+
+  const getSiteName = (siteId) => {
+    const site = sites.find(s => s.id === siteId);
+    return site ? site.name : '-';
+  };
+
+  const getRobotName = (robotId) => {
+    const robot = robots.find(r => r.id === robotId);
+    return robot ? robot.name : '-';
+  };
+
   // 회사 선택시 해당 회사의 사이트만 필터링
   const availableSites = formData.companyId
-    ? sites.filter((site) => site.companyId === parseInt(formData.companyId))
+    ? sites.filter((site) => site.companyId === formData.companyId)
     : [];
 
   // 사이트 선택시 해당 사이트의 로봇만 필터링
   const availableRobots = formData.siteId
-    ? robots.filter((robot) => robot.siteId === parseInt(formData.siteId))
+    ? robots.filter((robot) => robot.siteId === formData.siteId)
     : [];
 
   // 검색 필터링
-  const filteredMissions = missions.filter((mission) =>
-    mission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mission.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mission.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mission.robotName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mission.type.includes(searchTerm)
-  );
+  const filteredMissions = missions.filter((mission) => {
+    const companyName = getCompanyName(mission.companyId);
+    const siteName = getSiteName(mission.siteId);
+    const robotName = getRobotName(mission.robotId);
+    return (
+      mission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      robotName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      mission.type.includes(searchTerm)
+    );
+  });
 
   const handleAdd = () => {
     setEditingMission(null);
@@ -113,59 +118,50 @@ function Missions() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('이 미션을 삭제하시겠습니까?')) {
-      setMissions(missions.filter((mission) => mission.id !== id));
+      try {
+        await missionApi.delete(id);
+        await loadData();
+      } catch (error) {
+        console.error('Failed to delete mission:', error);
+        alert('미션 삭제에 실패했습니다.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const selectedCompany = companies.find((c) => c.id === parseInt(formData.companyId));
-    const selectedSite = sites.find((s) => s.id === parseInt(formData.siteId));
-    const selectedRobot = robots.find((r) => r.id === parseInt(formData.robotId));
+    const selectedCompany = companies.find((c) => c.id === formData.companyId);
+    const selectedSite = sites.find((s) => s.id === formData.siteId);
+    const selectedRobot = robots.find((r) => r.id === formData.robotId);
 
     if (!selectedCompany || !selectedSite || !selectedRobot) {
       alert('회사, 현장, 로봇을 모두 선택해주세요.');
       return;
     }
 
-    if (editingMission) {
-      // 편집
-      setMissions(
-        missions.map((mission) =>
-          mission.id === editingMission.id
-            ? {
-                ...mission,
-                ...formData,
-                companyId: parseInt(formData.companyId),
-                companyName: selectedCompany.name,
-                siteId: parseInt(formData.siteId),
-                siteName: selectedSite.name,
-                robotId: parseInt(formData.robotId),
-                robotName: selectedRobot.name,
-              }
-            : mission
-        )
-      );
-    } else {
-      // 추가
-      const newMission = {
-        id: Math.max(...missions.map((m) => m.id), 0) + 1,
+    try {
+      const missionData = {
         ...formData,
-        companyId: parseInt(formData.companyId),
-        companyName: selectedCompany.name,
-        siteId: parseInt(formData.siteId),
-        siteName: selectedSite.name,
-        robotId: parseInt(formData.robotId),
-        robotName: selectedRobot.name,
-        createdAt: new Date().toISOString().split('T')[0],
+        companyId: formData.companyId,
+        siteId: formData.siteId,
+        robotId: formData.robotId,
       };
-      setMissions([...missions, newMission]);
-    }
 
-    setIsModalOpen(false);
+      if (editingMission) {
+        await missionApi.update(editingMission.id, missionData);
+      } else {
+        await missionApi.create(missionData);
+      }
+
+      await loadData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save mission:', error);
+      alert('미션 저장에 실패했습니다.');
+    }
   };
 
   const handleChange = (e) => {
@@ -193,6 +189,16 @@ function Missions() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900">로딩 중...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -269,13 +275,13 @@ function Missions() {
                     {mission.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {mission.companyName}
+                    {getCompanyName(mission.companyId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {mission.siteName}
+                    {getSiteName(mission.siteId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {mission.robotName}
+                    {getRobotName(mission.robotId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {mission.type}

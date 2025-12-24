@@ -1,57 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Bot, Building2, MapPin, Package, Search } from 'lucide-react';
 import Modal from '../components/Modal';
-
-const initialRobots = [
-  {
-    id: 1,
-    name: 'Unitree GO2-01',
-    companyId: 1,
-    companyName: 'Smart Factory',
-    siteId: 1,
-    siteName: '서울 건설현장 A',
-    type: '사족보행',
-    brand: 'Unitree',
-    model: 'GO2',
-    identifier: 'UG2-001-KR',
-    serialNumber: 'SN-UG2-20250115-001',
-    status: '미션 실행 중',
-    currentMission: '안전 순찰 미션 A',
-    createdAt: '2025-01-15',
-  },
-  {
-    id: 2,
-    name: 'Matrice 4E-01',
-    companyId: 2,
-    companyName: 'Seoul Warehouse',
-    siteId: 2,
-    siteName: '부산 물류센터 B',
-    type: '드론',
-    brand: 'DJI',
-    model: 'Matrice 4E',
-    identifier: 'DJI-M4E-002-KR',
-    serialNumber: 'SN-M4E-20250210-002',
-    status: '대기중',
-    currentMission: null,
-    createdAt: '2025-02-10',
-  },
-];
-
-// Mock data from other pages
-const companies = [
-  { id: 1, name: 'Smart Factory' },
-  { id: 2, name: 'Seoul Warehouse' },
-];
-
-const sites = [
-  { id: 1, name: '서울 건설현장 A', companyId: 1 },
-  { id: 2, name: '부산 물류센터 B', companyId: 2 },
-];
+import { robotApi, companyApi, siteApi } from '../utils/api';
 
 const robotTypes = ['사족보행', '바퀴이동', '드론'];
 
 function Robots() {
-  const [robots, setRobots] = useState(initialRobots);
+  const [robots, setRobots] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRobot, setEditingRobot] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,21 +24,60 @@ function Robots() {
     serialNumber: '',
   });
 
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [robotsData, companiesData, sitesData] = await Promise.all([
+        robotApi.getAll(),
+        companyApi.getAll(),
+        siteApi.getAll(),
+      ]);
+      setRobots(robotsData || []);
+      setCompanies(companiesData || []);
+      setSites(sitesData || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper functions
+  const getCompanyName = (companyId) => {
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : '-';
+  };
+
+  const getSiteName = (siteId) => {
+    const site = sites.find(s => s.id === siteId);
+    return site ? site.name : '-';
+  };
+
   // 회사 선택시 해당 회사의 사이트만 필터링
   const availableSites = formData.companyId
-    ? sites.filter((site) => site.companyId === parseInt(formData.companyId))
+    ? sites.filter((site) => site.companyId === formData.companyId)
     : [];
 
   // 검색 필터링
-  const filteredRobots = robots.filter((robot) =>
-    robot.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.identifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    robot.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRobots = robots.filter((robot) => {
+    const companyName = getCompanyName(robot.companyId);
+    const siteName = getSiteName(robot.siteId);
+    return (
+      robot.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      robot.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      robot.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      robot.identifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      robot.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handleAdd = () => {
     setEditingRobot(null);
@@ -112,56 +109,48 @@ function Robots() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('이 로봇을 삭제하시겠습니까?')) {
-      setRobots(robots.filter((robot) => robot.id !== id));
+      try {
+        await robotApi.delete(id);
+        await loadData();
+      } catch (error) {
+        console.error('Failed to delete robot:', error);
+        alert('로봇 삭제에 실패했습니다.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const selectedCompany = companies.find((c) => c.id === parseInt(formData.companyId));
-    const selectedSite = sites.find((s) => s.id === parseInt(formData.siteId));
+    const selectedCompany = companies.find((c) => c.id === formData.companyId);
+    const selectedSite = sites.find((s) => s.id === formData.siteId);
 
     if (!selectedCompany || !selectedSite) {
       alert('회사와 현장을 선택해주세요.');
       return;
     }
 
-    if (editingRobot) {
-      // 편집
-      setRobots(
-        robots.map((robot) =>
-          robot.id === editingRobot.id
-            ? {
-                ...robot,
-                ...formData,
-                companyId: parseInt(formData.companyId),
-                companyName: selectedCompany.name,
-                siteId: parseInt(formData.siteId),
-                siteName: selectedSite.name,
-              }
-            : robot
-        )
-      );
-    } else {
-      // 추가
-      const newRobot = {
-        id: Math.max(...robots.map((r) => r.id), 0) + 1,
+    try {
+      const robotData = {
         ...formData,
-        companyId: parseInt(formData.companyId),
-        companyName: selectedCompany.name,
-        siteId: parseInt(formData.siteId),
-        siteName: selectedSite.name,
-        status: '대기중',
-        currentMission: null,
-        createdAt: new Date().toISOString().split('T')[0],
+        companyId: formData.companyId,
+        siteId: formData.siteId,
       };
-      setRobots([...robots, newRobot]);
-    }
 
-    setIsModalOpen(false);
+      if (editingRobot) {
+        await robotApi.update(editingRobot.id, robotData);
+      } else {
+        await robotApi.create(robotData);
+      }
+
+      await loadData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save robot:', error);
+      alert('로봇 저장에 실패했습니다.');
+    }
   };
 
   const handleChange = (e) => {
@@ -194,6 +183,16 @@ function Robots() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900">로딩 중...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -279,10 +278,10 @@ function Robots() {
                     {robot.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {robot.companyName}
+                    {getCompanyName(robot.companyId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {robot.siteName}
+                    {getSiteName(robot.siteId)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {robot.type}
