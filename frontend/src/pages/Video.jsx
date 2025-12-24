@@ -288,7 +288,7 @@ function Video() {
                   <span className="text-xs font-medium text-gray-700 whitespace-nowrap">시간 조정</span>
                   <div className="flex-1 relative">
                     {/* Center marker */}
-                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 -translate-x-1/2 pointer-events-none" />
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 -translate-x-1/2 pointer-events-none z-10" />
                     <input
                       type="range"
                       min="-30"
@@ -297,13 +297,19 @@ function Video() {
                       onChange={(e) => setOffsets[index](parseInt(e.target.value))}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                       style={{
-                        background: `linear-gradient(to right,
-                          #e5e7eb 0%,
-                          #e5e7eb ${((offsets[index] + 30) / 60) * 50}%,
-                          #3b82f6 ${((offsets[index] + 30) / 60) * 50}%,
-                          #3b82f6 50%,
-                          #e5e7eb 50%,
-                          #e5e7eb 100%)`
+                        background: (() => {
+                          const percentage = ((offsets[index] + 30) / 60) * 100;
+                          if (offsets[index] < 0) {
+                            // 음수: 현재 위치에서 중앙(50%)까지 파란색
+                            return `linear-gradient(to right, #e5e7eb 0%, #e5e7eb ${percentage}%, #3b82f6 ${percentage}%, #3b82f6 50%, #e5e7eb 50%, #e5e7eb 100%)`;
+                          } else if (offsets[index] > 0) {
+                            // 양수: 중앙(50%)에서 현재 위치까지 파란색
+                            return `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 50%, #3b82f6 50%, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%, #e5e7eb 100%)`;
+                          } else {
+                            // 0: 색상 없음
+                            return '#e5e7eb';
+                          }
+                        })()
                       }}
                     />
                   </div>
