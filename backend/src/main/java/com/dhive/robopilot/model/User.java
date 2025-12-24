@@ -34,9 +34,11 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String role; // ADMIN, OPERATOR, USER
+    private String role; // SYSTEM_ADMIN, COMPANY_ADMIN, OPERATOR
 
-    private String company;
+    private String companyId;
+
+    private String companyName;
 
     @Column(nullable = false)
     private String status; // ACTIVE, INACTIVE

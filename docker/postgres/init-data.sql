@@ -119,22 +119,22 @@ VALUES
 
 -- 5. 사용자 데이터 (샘플)
 -- 비밀번호는 모두 'password123' (실제 운영에서는 암호화된 값 사용)
-INSERT INTO users (id, username, password, name, email, role, company, status, created_at, updated_at)
+INSERT INTO users (id, username, password, name, email, role, company_id, company_name, status, created_at, updated_at)
 VALUES
     ('user-admin-001', 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     '시스템 관리자', 'admin@robopilot.com', 'SYSTEM_ADMIN', NULL, 'ACTIVE', NOW(), NOW()),
+     '시스템 관리자', 'admin@robopilot.com', 'SYSTEM_ADMIN', NULL, NULL, 'ACTIVE', NOW(), NOW()),
 
     ('user-fpt-001', 'fpt.manager', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     'Nguyen Van A', 'manager@fpt.com.vn', 'COMPANY_ADMIN', 'fpt-software-001', 'ACTIVE', NOW(), NOW()),
+     'Nguyen Van A', 'manager@fpt.com.vn', 'COMPANY_ADMIN', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW()),
 
     ('user-hhi-001', 'hhi.manager', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     '김철수', 'manager@hhi.co.kr', 'COMPANY_ADMIN', 'hyundai-heavy-001', 'ACTIVE', NOW(), NOW()),
+     '김철수', 'manager@hhi.co.kr', 'COMPANY_ADMIN', 'hyundai-heavy-001', '현대중공업', 'ACTIVE', NOW(), NOW()),
 
     ('user-skt-001', 'skt.manager', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'ACTIVE', NOW(), NOW()),
+     '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
     ('user-viewer-001', 'viewer', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     '일반 사용자', 'viewer@robopilot.com', 'OPERATOR', NULL, 'ACTIVE', NOW(), NOW());
+     '일반 사용자', 'viewer@robopilot.com', 'OPERATOR', NULL, NULL, 'ACTIVE', NOW(), NOW());
 
 -- 데이터 확인 쿼리
 SELECT '회사 수: ' || COUNT(*) FROM companies;
