@@ -1,34 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Building2, Phone, Mail, MapPin, FileText, Search } from 'lucide-react';
 import Modal from '../components/Modal';
-
-const initialCompanies = [
-  {
-    id: 1,
-    name: 'Smart Factory',
-    contact: '+82-2-1234-5678',
-    email: 'contact@smartfactory.com',
-    address: 'Seoul, Gangnam-gu, Teheran-ro 123',
-    description: 'IoT 기반 스마트 팩토리 솔루션 제공 업체',
-    siteCount: 3,
-    robotCount: 5,
-    createdAt: '2025-01-15',
-  },
-  {
-    id: 2,
-    name: 'Seoul Warehouse',
-    contact: '+82-2-2345-6789',
-    email: 'info@seoulwarehouse.com',
-    address: 'Seoul, Songpa-gu, Olympic-ro 456',
-    description: '물류 자동화 및 창고 관리 전문 기업',
-    siteCount: 2,
-    robotCount: 3,
-    createdAt: '2025-02-10',
-  },
-];
+import { companyApi } from '../utils/api';
 
 function Companies() {
-  const [companies, setCompanies] = useState(initialCompanies);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,15 +14,33 @@ function Companies() {
     contact: '',
     email: '',
     address: '',
-    description: '',
+    type: '',
   });
+
+  // 데이터 로드
+  useEffect(() => {
+    loadCompanies();
+  }, []);
+
+  const loadCompanies = async () => {
+    try {
+      setLoading(true);
+      const data = await companyApi.getAll();
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Failed to load companies:', error);
+      alert('회사 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 검색 필터링
   const filteredCompanies = companies.filter((company) =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.contact.includes(searchTerm) ||
-    company.address.toLowerCase().includes(searchTerm.toLowerCase())
+    (company.email && company.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (company.contact && company.contact.includes(searchTerm)) ||
+    (company.address && company.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleAdd = () => {
@@ -55,7 +50,7 @@ function Companies() {
       contact: '',
       email: '',
       address: '',
-      description: '',
+      type: '',
     });
     setIsModalOpen(true);
   };
@@ -64,45 +59,43 @@ function Companies() {
     setEditingCompany(company);
     setFormData({
       name: company.name,
-      contact: company.contact,
-      email: company.email,
-      address: company.address,
-      description: company.description,
+      contact: company.contact || '',
+      email: company.email || '',
+      address: company.address || '',
+      type: company.type || '',
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('정말 이 회사를 삭제하시겠습니까?')) {
-      setCompanies(companies.filter((c) => c.id !== id));
+      try {
+        await companyApi.delete(id);
+        await loadCompanies();
+      } catch (error) {
+        console.error('Failed to delete company:', error);
+        alert('회사 삭제에 실패했습니다.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (editingCompany) {
-      // 수정
-      setCompanies(
-        companies.map((c) =>
-          c.id === editingCompany.id
-            ? { ...c, ...formData }
-            : c
-        )
-      );
-    } else {
-      // 추가
-      const newCompany = {
-        id: Math.max(...companies.map((c) => c.id), 0) + 1,
-        ...formData,
-        siteCount: 0,
-        robotCount: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      setCompanies([...companies, newCompany]);
+    try {
+      if (editingCompany) {
+        // 수정
+        await companyApi.update(editingCompany.id, formData);
+      } else {
+        // 추가
+        await companyApi.create(formData);
+      }
+      await loadCompanies();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save company:', error);
+      alert('회사 저장에 실패했습니다.');
     }
-
-    setIsModalOpen(false);
   };
 
   const handleChange = (e) => {
@@ -142,89 +135,99 @@ function Companies() {
         </div>
       </div>
 
-      {/* Companies Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  번호
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  회사명
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  연락처
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  이메일
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  등록일
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  주소
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  사항
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCompanies.map((company, index) => (
-                <tr key={company.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {index + 1}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {company.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {company.contact}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {company.email}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {company.createdAt}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {company.address}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(company)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="편집"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(company.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p className="mt-2 text-sm text-gray-600">로딩 중...</p>
         </div>
+      )}
 
-        {/* Empty State */}
-        {filteredCompanies.length === 0 && (
-          <div className="text-center py-12">
-            <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">검색 결과가 없습니다</h3>
-            <p className="mt-1 text-sm text-gray-500">다른 검색어를 시도해보세요.</p>
+      {/* Companies Table */}
+      {!loading && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    번호
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    회사명
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    연락처
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    이메일
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    등록일
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    주소
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    사항
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredCompanies.map((company, index) => (
+                  <tr key={company.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {company.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {company.contact || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {company.email || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {company.createdAt ? new Date(company.createdAt).toLocaleDateString('ko-KR') : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {company.address || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(company)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="편집"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(company.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {/* Empty State */}
+          {!loading && filteredCompanies.length === 0 && (
+            <div className="text-center py-12">
+              <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">검색 결과가 없습니다</h3>
+              <p className="mt-1 text-sm text-gray-500">다른 검색어를 시도해보세요.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal
@@ -257,7 +260,6 @@ function Companies() {
             <input
               type="text"
               name="contact"
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="+84-24-7300-8866"
               value={formData.contact}
@@ -273,7 +275,6 @@ function Companies() {
             <input
               type="email"
               name="email"
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="contact@fpt.com.vn"
               value={formData.email}
@@ -289,7 +290,6 @@ function Companies() {
             <input
               type="text"
               name="address"
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="FPT Tower, 10 Pham Van Bach, Cau Giay, Hanoi, Vietnam"
               value={formData.address}
@@ -300,14 +300,14 @@ function Companies() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <FileText className="inline h-4 w-4 mr-1" />
-              설명
+              유형
             </label>
-            <textarea
-              name="description"
-              rows="3"
+            <input
+              type="text"
+              name="type"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="운영 소프트웨어 개발 및 IT 서비스 회사"
-              value={formData.description}
+              placeholder="IT Service, Manufacturing, Telecom 등"
+              value={formData.type}
               onChange={handleChange}
             />
           </div>

@@ -1,51 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, User, Mail, Lock, Building2, Shield, MapPin, Search } from 'lucide-react';
 import Modal from '../components/Modal';
 import { ROLE_LABELS } from '../utils/mockUsers';
-
-const initialUsers = [
-  {
-    id: 1,
-    name: '시스템 관리자',
-    email: 'system@admin.com',
-    role: 'SYSTEM_ADMIN',
-    companyId: null,
-    companyName: 'ROBOPILOT',
-    siteIds: [],
-    createdAt: '2025-01-01',
-  },
-  {
-    id: 2,
-    name: '회사 관리자',
-    email: 'companyA@admin.com',
-    role: 'COMPANY_ADMIN',
-    companyId: 1,
-    companyName: 'Smart Factory',
-    siteIds: [],
-    createdAt: '2025-01-15',
-  },
-  {
-    id: 3,
-    name: '현장 운영자',
-    email: 'operator@companyA.com',
-    role: 'OPERATOR',
-    companyId: 1,
-    companyName: 'Smart Factory',
-    siteIds: [1],
-    createdAt: '2025-01-20',
-  },
-];
-
-// Mock data from other pages
-const companies = [
-  { id: 1, name: 'Smart Factory' },
-  { id: 2, name: 'Seoul Warehouse' },
-];
-
-const sites = [
-  { id: 1, name: '서울 건설현장 A', companyId: 1 },
-  { id: 2, name: '부산 물류센터 B', companyId: 2 },
-];
+import { userApi, companyApi, siteApi } from '../utils/api';
 
 const roles = [
   { value: 'SYSTEM_ADMIN', label: 'System Admin', description: '모든 권한' },
@@ -54,7 +11,10 @@ const roles = [
 ];
 
 function Users() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,18 +27,52 @@ function Users() {
     siteIds: [],
   });
 
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [usersData, companiesData, sitesData] = await Promise.all([
+        userApi.getAll(),
+        companyApi.getAll(),
+        siteApi.getAll(),
+      ]);
+      setUsers(usersData || []);
+      setCompanies(companiesData || []);
+      setSites(sitesData || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function
+  const getCompanyName = (companyId) => {
+    if (!companyId) return 'ROBOPILOT';
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : '-';
+  };
+
   // 회사 선택시 해당 회사의 사이트만 필터링
   const availableSites = formData.companyId
-    ? sites.filter((site) => site.companyId === parseInt(formData.companyId))
+    ? sites.filter((site) => site.companyId === formData.companyId)
     : [];
 
   // 검색 필터링
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ROLE_LABELS[user.role].toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => {
+    const companyName = getCompanyName(user.companyId);
+    return (
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ROLE_LABELS[user.role].toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handleAdd = () => {
     setEditingUser(null);
@@ -106,19 +100,25 @@ function Users() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('이 사용자를 삭제하시겠습니까?')) {
-      setUsers(users.filter((user) => user.id !== id));
+      try {
+        await userApi.delete(id);
+        await loadData();
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+        alert('사용자 삭제에 실패했습니다.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // System Admin은 회사 선택 불필요
     let selectedCompany = null;
     if (formData.role !== 'SYSTEM_ADMIN') {
-      selectedCompany = companies.find((c) => c.id === parseInt(formData.companyId));
+      selectedCompany = companies.find((c) => c.id === formData.companyId);
       if (!selectedCompany) {
         alert('회사를 선택해주세요.');
         return;
@@ -131,39 +131,25 @@ function Users() {
       return;
     }
 
-    if (editingUser) {
-      // 편집
-      setUsers(
-        users.map((user) =>
-          user.id === editingUser.id
-            ? {
-                ...user,
-                name: formData.name,
-                email: formData.email,
-                role: formData.role,
-                companyId: formData.role === 'SYSTEM_ADMIN' ? null : parseInt(formData.companyId),
-                companyName: formData.role === 'SYSTEM_ADMIN' ? 'ROBOPILOT' : selectedCompany.name,
-                siteIds: formData.role === 'OPERATOR' ? formData.siteIds : [],
-              }
-            : user
-        )
-      );
-    } else {
-      // 추가
-      const newUser = {
-        id: Math.max(...users.map((u) => u.id), 0) + 1,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        companyId: formData.role === 'SYSTEM_ADMIN' ? null : parseInt(formData.companyId),
-        companyName: formData.role === 'SYSTEM_ADMIN' ? 'ROBOPILOT' : selectedCompany.name,
+    try {
+      const userData = {
+        ...formData,
+        companyId: formData.role === 'SYSTEM_ADMIN' ? null : formData.companyId,
         siteIds: formData.role === 'OPERATOR' ? formData.siteIds : [],
-        createdAt: new Date().toISOString().split('T')[0],
       };
-      setUsers([...users, newUser]);
-    }
 
-    setIsModalOpen(false);
+      if (editingUser) {
+        await userApi.update(editingUser.id, userData);
+      } else {
+        await userApi.create(userData);
+      }
+
+      await loadData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      alert('사용자 저장에 실패했습니다.');
+    }
   };
 
   const handleChange = (e) => {
@@ -210,6 +196,16 @@ function Users() {
       .filter(Boolean)
       .join(', ');
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900">로딩 중...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -291,7 +287,7 @@ function Users() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {user.companyName}
+                    {getCompanyName(user.companyId)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {getSiteNames(user.siteIds)}

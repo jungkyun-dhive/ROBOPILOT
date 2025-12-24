@@ -1,41 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, MapPin, Building2, User, Phone, FileText, Search } from 'lucide-react';
 import Modal from '../components/Modal';
-
-const initialSites = [
-  {
-    id: 1,
-    name: '서울 건설현장 A',
-    companyId: 1,
-    companyName: 'Smart Factory',
-    location: '서울시 강남구 테헤란로 123',
-    manager: '박현장',
-    contact: '+82-10-1234-5678',
-    description: 'IoT 기반 스마트 건설 관리 현장',
-    robotCount: 2,
-    createdAt: '2025-01-20',
-  },
-  {
-    id: 2,
-    name: '부산 물류센터 B',
-    companyId: 2,
-    companyName: 'Seoul Warehouse',
-    location: '부산시 해운대구 센텀로 456',
-    manager: '최관리',
-    contact: '+82-10-2345-6789',
-    description: '자동화 물류 창고 관리',
-    robotCount: 3,
-    createdAt: '2025-02-15',
-  },
-];
-
-const companies = [
-  { id: 1, name: 'Smart Factory' },
-  { id: 2, name: 'Seoul Warehouse' },
-];
+import { siteApi, companyApi } from '../utils/api';
 
 function Sites() {
-  const [sites, setSites] = useState(initialSites);
+  const [sites, setSites] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSite, setEditingSite] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,14 +19,45 @@ function Sites() {
     description: '',
   });
 
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [sitesData, companiesData] = await Promise.all([
+        siteApi.getAll(),
+        companyApi.getAll(),
+      ]);
+      setSites(sitesData || []);
+      setCompanies(companiesData || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      alert('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to get company name
+  const getCompanyName = (companyId) => {
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : '-';
+  };
+
   // 검색 필터링
-  const filteredSites = sites.filter((site) =>
-    site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.contact.includes(searchTerm)
-  );
+  const filteredSites = sites.filter((site) => {
+    const companyName = getCompanyName(site.companyId);
+    return (
+      site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.contact.includes(searchTerm)
+    );
+  });
 
   const handleAdd = () => {
     setEditingSite(null);
@@ -83,49 +85,45 @@ function Sites() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('이 현장을 삭제하시겠습니까?')) {
-      setSites(sites.filter((site) => site.id !== id));
+      try {
+        await siteApi.delete(id);
+        await loadData();
+      } catch (error) {
+        console.error('Failed to delete site:', error);
+        alert('현장 삭제에 실패했습니다.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const selectedCompany = companies.find((c) => c.id === parseInt(formData.companyId));
+    const selectedCompany = companies.find((c) => c.id === formData.companyId);
     if (!selectedCompany) {
       alert('회사를 선택해주세요.');
       return;
     }
 
-    if (editingSite) {
-      // 편집
-      setSites(
-        sites.map((site) =>
-          site.id === editingSite.id
-            ? {
-                ...site,
-                ...formData,
-                companyId: parseInt(formData.companyId),
-                companyName: selectedCompany.name,
-              }
-            : site
-        )
-      );
-    } else {
-      // 추가
-      const newSite = {
-        id: Math.max(...sites.map((s) => s.id), 0) + 1,
+    try {
+      const siteData = {
         ...formData,
-        companyId: parseInt(formData.companyId),
-        companyName: selectedCompany.name,
-        robotCount: 0,
-        createdAt: new Date().toISOString().split('T')[0],
+        companyId: formData.companyId,
       };
-      setSites([...sites, newSite]);
-    }
 
-    setIsModalOpen(false);
+      if (editingSite) {
+        await siteApi.update(editingSite.id, siteData);
+      } else {
+        await siteApi.create(siteData);
+      }
+
+      await loadData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save site:', error);
+      alert('현장 저장에 실패했습니다.');
+    }
   };
 
   const handleChange = (e) => {
@@ -134,6 +132,16 @@ function Sites() {
       [e.target.name]: e.target.value,
     });
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-900">로딩 중...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -207,7 +215,7 @@ function Sites() {
                     {site.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {site.companyName}
+                    {getCompanyName(site.companyId)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {site.location}
