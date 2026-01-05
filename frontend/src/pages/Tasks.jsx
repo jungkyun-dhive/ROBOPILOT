@@ -1,27 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { companyApi, siteApi, missionApi, robotApi } from '../utils/api';
 import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity, AlertOctagon, Play, Square } from 'lucide-react';
-
-// Mock data
-const companies = [
-  { id: 1, name: 'Smart Factory' },
-  { id: 2, name: 'Seoul Warehouse' },
-];
-
-const sites = [
-  { id: 1, name: '서울 건설현장 A', companyId: 1 },
-  { id: 2, name: '부산 물류센터 B', companyId: 2 },
-];
-
-const missions = [
-  { id: 1, name: '안전 순찰 미션 A', siteId: 1 },
-  { id: 2, name: '물류 점검 미션', siteId: 2 },
-];
-
-const robots = [
-  { id: 1, name: 'Unitree GO2-01', siteId: 1, type: '사족보행' },
-  { id: 2, name: 'Matrice 4E-01', siteId: 2, type: '드론' },
-];
 
 const aiModules = [
   { id: 'person', label: '사람', enabled: true },
@@ -34,12 +14,42 @@ const aiModules = [
 
 function Tasks() {
   const { user } = useAuth();
+  const [companies, setCompanies] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [missions, setMissions] = useState([]);
+  const [robots, setRobots] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [selectedMissionId, setSelectedMissionId] = useState('');
   const [selectedRobotId, setSelectedRobotId] = useState('');
   const [aiDetections, setAiDetections] = useState(aiModules);
   const [missionStarted, setMissionStarted] = useState(false);
+
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [companiesData, sitesData, missionsData, robotsData] = await Promise.all([
+        companyApi.getAll(),
+        siteApi.getAll(),
+        missionApi.getAll(),
+        robotApi.getAll(),
+      ]);
+      setCompanies(companiesData || []);
+      setSites(sitesData || []);
+      setMissions(missionsData || []);
+      setRobots(robotsData || []);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 권한에 따라 회사 선택 가능 여부 결정
   const isCompanySelectable = user?.role === 'SYSTEM_ADMIN';
@@ -48,7 +58,7 @@ function Tasks() {
   // 사용자가 접근 가능한 현장 필터링
   const availableSites = selectedCompanyId
     ? sites.filter((site) => {
-        const matchesCompany = site.companyId === parseInt(selectedCompanyId);
+        const matchesCompany = site.companyId === selectedCompanyId;
         // Operator는 할당된 현장만 볼 수 있음
         if (user?.role === 'OPERATOR') {
           return matchesCompany && user.siteIds?.includes(site.id);
@@ -59,16 +69,16 @@ function Tasks() {
 
   // 현장에 따른 미션 필터링
   const availableMissions = selectedSiteId
-    ? missions.filter((mission) => mission.siteId === parseInt(selectedSiteId))
+    ? missions.filter((mission) => mission.siteId === selectedSiteId)
     : [];
 
   // 현장에 따른 로봇 필터링
   const availableRobots = selectedSiteId
-    ? robots.filter((robot) => robot.siteId === parseInt(selectedSiteId))
+    ? robots.filter((robot) => robot.siteId === selectedSiteId)
     : [];
 
   // 선택된 로봇 정보
-  const selectedRobot = robots.find((r) => r.id === parseInt(selectedRobotId));
+  const selectedRobot = robots.find((r) => r.id === selectedRobotId);
 
   const handleAiToggle = (moduleId) => {
     setAiDetections(
@@ -355,9 +365,9 @@ function Tasks() {
             {selectedRobotId && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  {selectedRobot?.type === '드론' ? '드론 제어' : '로봇 제어'}
+                  {selectedRobot?.type === 'DRONE' ? '드론 제어' : '로봇 제어'}
                 </h3>
-                {selectedRobot?.type === '드론' ? (
+                {selectedRobot?.type === 'DRONE' ? (
                   <div className="space-y-3">
                     {/* Drone Controls */}
                     <div className="grid grid-cols-3 gap-2">
