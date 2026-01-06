@@ -118,27 +118,27 @@ VALUES
      NULL, NULL, NOW(), NOW());
 
 -- 5. 사용자 데이터 (샘플)
--- 비밀번호: System Admin & Company Admin = 'admin123', Operator = 'operator123'
+-- 비밀번호: 모든 계정 = 'admin123' (Spring Security BCrypt $2a$ 호환)
 INSERT INTO users (id, username, password, name, email, role, company_id, company_name, status, created_at, updated_at)
 VALUES
-    -- System Admin: admin123
-    ('user-admin-001', 'admin', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- System Admin: password = admin123
+    ('user-admin-001', 'admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      '시스템 관리자', 'admin@robopilot.com', 'SYSTEM_ADMIN', NULL, NULL, 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-fpt-001', 'fpt.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-fpt-001', 'fpt.manager', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      'Nguyen Van A', 'manager@fpt.com.vn', 'COMPANY_ADMIN', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-hhi-001', 'hhi.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-hhi-001', 'hhi.manager', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      '김철수', 'manager@hhi.co.kr', 'COMPANY_ADMIN', 'hyundai-heavy-001', '현대중공업', 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-skt-001', 'skt.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-skt-001', 'skt.manager', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
-    -- Operator: operator123
-    ('user-viewer-001', 'viewer', '$2b$12$936rqZA2.OZRMFdRY0IY.e8qnWu2eaULmJj5g6kXlsKbihO.alzA2',
+    -- Operator: password = admin123
+    ('user-viewer-001', 'viewer', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      '일반 사용자', 'viewer@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
 
 -- 데이터 확인 쿼리
