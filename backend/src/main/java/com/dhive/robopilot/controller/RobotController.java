@@ -1,10 +1,13 @@
 package com.dhive.robopilot.controller;
 
 import com.dhive.robopilot.model.Robot;
+import com.dhive.robopilot.model.User;
 import com.dhive.robopilot.service.RobotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +20,24 @@ public class RobotController {
 
     @GetMapping
     public ResponseEntity<List<Robot>> getAllRobots() {
-        return ResponseEntity.ok(robotService.getAllRobots());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User currentUser = (User) authentication.getPrincipal();
+
+        // SYSTEM_ADMIN can see all robots
+        if ("SYSTEM_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.ok(robotService.getAllRobots());
+        }
+
+        // COMPANY_ADMIN and OPERATOR can only see robots from their company
+        if (currentUser.getCompanyId() != null) {
+            return ResponseEntity.ok(robotService.getRobotsByCompanyId(currentUser.getCompanyId()));
+        }
+
+        return ResponseEntity.ok(List.of());
     }
 
     @GetMapping("/{id}")

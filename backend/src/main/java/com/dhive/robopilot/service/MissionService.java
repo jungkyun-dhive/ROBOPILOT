@@ -54,4 +54,9 @@ public class MissionService {
     public void deleteMission(String id) {
         missionRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public List<Mission> getMissionsByCompanyId(String companyId) {
+        return missionRepository.findByCompanyId(companyId);
+    }
 }

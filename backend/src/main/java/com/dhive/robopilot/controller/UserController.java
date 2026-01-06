@@ -5,6 +5,8 @@ import com.dhive.robopilot.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +19,24 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User currentUser = (User) authentication.getPrincipal();
+
+        // SYSTEM_ADMIN can see all users
+        if ("SYSTEM_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.ok(userService.getAllUsers());
+        }
+
+        // COMPANY_ADMIN and OPERATOR can only see users from their company
+        if (currentUser.getCompanyId() != null) {
+            return ResponseEntity.ok(userService.getUsersByCompanyId(currentUser.getCompanyId()));
+        }
+
+        return ResponseEntity.ok(List.of());
     }
 
     @GetMapping("/{id}")

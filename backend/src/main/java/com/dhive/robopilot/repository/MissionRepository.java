@@ -11,4 +11,5 @@ public interface MissionRepository extends JpaRepository<Mission, String> {
     List<Mission> findBySiteId(String siteId);
     List<Mission> findByRobotId(String robotId);
     List<Mission> findByStatus(String status);
+    List<Mission> findByCompanyId(String companyId);
 }

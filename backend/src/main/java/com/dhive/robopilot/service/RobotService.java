@@ -54,4 +54,9 @@ public class RobotService {
     public void deleteRobot(String id) {
         robotRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public List<Robot> getRobotsByCompanyId(String companyId) {
+        return robotRepository.findByCompanyId(companyId);
+    }
 }

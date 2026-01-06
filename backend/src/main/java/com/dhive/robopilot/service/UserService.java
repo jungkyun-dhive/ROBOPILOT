@@ -59,4 +59,9 @@ public class UserService {
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+
+    @Transactional(readOnly = true)
+    public List<User> getUsersByCompanyId(String companyId) {
+        return userRepository.findByCompanyId(companyId);
+    }
 }

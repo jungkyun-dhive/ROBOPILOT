@@ -2,10 +2,13 @@ package com.dhive.robopilot.controller;
 
 import com.dhive.robopilot.model.User;
 import com.dhive.robopilot.service.UserService;
+import com.dhive.robopilot.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +24,7 @@ public class AuthController {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> credentials) {
@@ -64,11 +68,17 @@ public class AuthController {
                 .body(Map.of("error", "User account is not active"));
         }
 
-        // Return user info
+        // Generate JWT token
         log.info("Login successful for user: {}", emailOrUsername);
+        String token = jwtUtil.generateToken(
+            user.getId(),
+            user.getUsername(),
+            user.getRole(),
+            user.getCompanyId()
+        );
 
         Map<String, Object> response = new HashMap<>();
-        response.put("token", "jwt-token-" + user.getId());
+        response.put("token", token);
         response.put("user", Map.of(
             "id", user.getId(),
             "username", user.getUsername(),
@@ -91,12 +101,24 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser() {
-        // TODO: Get actual user from JWT token
-        Map<String, Object> user = new HashMap<>();
-        user.put("username", "admin");
-        user.put("name", "Admin User");
-        user.put("email", "admin@robopilot.com");
-        user.put("role", "ADMIN");
-        return ResponseEntity.ok(user);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Not authenticated"));
+        }
+
+        User user = (User) authentication.getPrincipal();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", user.getId());
+        response.put("username", user.getUsername());
+        response.put("name", user.getName());
+        response.put("email", user.getEmail());
+        response.put("role", user.getRole());
+        response.put("companyId", user.getCompanyId() != null ? user.getCompanyId() : "");
+        response.put("companyName", user.getCompanyName() != null ? user.getCompanyName() : "");
+
+        return ResponseEntity.ok(response);
     }
 }
