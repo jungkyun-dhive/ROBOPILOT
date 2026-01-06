@@ -33,7 +33,7 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:robopilot-secret-key-change-in-production}
+  secret: ${JWT_SECRET:robopilot-jwt-secret-key-for-production-minimum-256-bits-required-by-hmac-sha}
   expiration: 86400000 # 24 hours in milliseconds
 
 # Logging
