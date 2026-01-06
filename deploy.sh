@@ -12,7 +12,9 @@ echo "======================================"
 # 1. 저장소 업데이트
 echo "1. Git 저장소 업데이트..."
 cd /home/ec2-user/ROBOPILOT
-git pull origin claude/setup-postgresql-database-vrPI3
+CURRENT_BRANCH=$(git branch --show-current)
+echo "현재 브랜치: $CURRENT_BRANCH"
+git pull origin $CURRENT_BRANCH
 
 # 2. Frontend 빌드
 echo "2. Frontend 빌드 중..."
