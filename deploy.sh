@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ROBOPILOT 배포 스크립트
+# ROBOPILOT 배포 스크립트 (Docker Compose + Nginx)
 # EC2 인스턴스에서 실행
 
 set -e
@@ -19,39 +19,40 @@ echo "2. Frontend 빌드 중..."
 cd frontend
 npm install
 npm run build
+cd ..
 
-# 3. Backend 빌드
-echo "3. Backend 빌드 중..."
-cd ../backend
-mvn clean package -DskipTests
+# 3. Nginx 설정 업데이트
+echo "3. Nginx 설정 업데이트..."
+sudo cp deployment/nginx.conf /etc/nginx/conf.d/robopilot.conf
 
-# 4. 기존 프로세스 중지
-echo "4. 기존 서비스 중지..."
-sudo systemctl stop robopilot-backend || true
-sudo systemctl stop nginx || true
+# 4. Docker Compose로 백엔드 및 PostgreSQL 재시작
+echo "4. Docker 서비스 재시작..."
+docker-compose down
+docker-compose up -d
 
-# 5. Frontend 배포 (Nginx)
-echo "5. Frontend 배포..."
-sudo rm -rf /var/www/robopilot
-sudo mkdir -p /var/www/robopilot
-sudo cp -r ../frontend/dist/* /var/www/robopilot/
+# 5. Nginx 재시작
+echo "5. Nginx 재시작..."
+sudo systemctl reload nginx
 
-# 6. Backend 배포
-echo "6. Backend 배포..."
-sudo cp target/*.jar /opt/robopilot/robopilot-backend.jar
+# 6. 서비스 상태 확인
+echo "6. 서비스 상태 확인..."
+echo ""
+echo "Docker 컨테이너 상태:"
+docker-compose ps
 
-# 7. 서비스 재시작
-echo "7. 서비스 재시작..."
-sudo systemctl start robopilot-backend
-sudo systemctl start nginx
+echo ""
+echo "Nginx 상태:"
+sudo systemctl status nginx --no-pager -l
 
-# 8. 상태 확인
-echo "8. 서비스 상태 확인..."
-sudo systemctl status robopilot-backend --no-pager
-sudo systemctl status nginx --no-pager
+echo ""
+echo "백엔드 로그 (최근 20줄):"
+docker-compose logs --tail=20 backend
 
 echo "======================================"
 echo "배포 완료!"
-echo "Frontend: http://13.125.59.147"
-echo "Backend: http://13.125.59.147:8080"
+echo "Frontend: http://13.125.59.147 (Nginx 정적 파일)"
+echo "Backend API: http://13.125.59.147/api (Docker)"
+echo "======================================"
+echo ""
+echo "로그 확인: docker-compose logs -f backend"
 echo "======================================"

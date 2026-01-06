@@ -12,11 +12,11 @@ function Login() {
   });
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    const result = login(formData.email, formData.password);
+    const result = await login(formData.email, formData.password);
 
     if (result.success) {
       navigate('/dashboard');
@@ -97,13 +97,13 @@ function Login() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-xs text-gray-600 space-y-1">
               <div>
-                <span className="font-semibold">System Admin:</span> system@admin.com / admin123
+                <span className="font-semibold">System Admin:</span> admin@robopilot.com / admin123
               </div>
               <div>
-                <span className="font-semibold">Company Admin:</span> companyA@admin.com / admin123
+                <span className="font-semibold">Company Admin:</span> manager@fpt.com.vn / admin123
               </div>
               <div>
-                <span className="font-semibold">Operator:</span> operator@companyA.com / operator123
+                <span className="font-semibold">Operator:</span> viewer@fpt.com.vn / operator123
               </div>
             </div>
           </div>
