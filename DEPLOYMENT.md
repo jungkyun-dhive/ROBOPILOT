@@ -1,5 +1,12 @@
 # ROBOPILOT AWS EC2 배포 가이드
 
+## 아키텍처
+
+- **Frontend**: Nginx에서 정적 파일 직접 서빙
+- **Backend**: Docker Compose (Spring Boot)
+- **Database**: Docker Compose (PostgreSQL)
+- **MQTT**: Docker Compose (Mosquitto)
+
 ## 사전 준비
 
 ### 1. EC2 인스턴스 접속
@@ -11,79 +18,62 @@ ssh -i your-key.pem ec2-user@13.125.59.147
 
 ```bash
 # 시스템 업데이트
-sudo apt update && sudo apt upgrade -y
+sudo yum update -y
 
-# Node.js 20.x 설치 (이미 설치되어 있음)
+# Node.js 20.x 설치
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 source ~/.bashrc
 nvm install 20
 nvm use 20
 
-# Java 17 설치
-sudo apt install -y openjdk-17-jdk
+# Docker 설치
+sudo yum install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
 
-# Maven 설치
-sudo apt install -y maven
+# Docker Compose 설치
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
 # Nginx 설치
-sudo apt install -y nginx
+sudo yum install -y nginx
+sudo systemctl enable nginx
 
 # Git 설치 (이미 설치되어 있을 것)
-sudo apt install -y git
+sudo yum install -y git
+
+# 재로그인하여 docker 그룹 적용
+exit
+# 다시 ssh 접속
 ```
 
 ## 배포 단계
 
-### 1. 저장소 클론 (이미 되어 있음)
+### 1. 저장소 클론 (처음 한 번만)
 ```bash
 cd ~
-# git clone https://github.com/your-repo/ROBOPILOT.git
+git clone https://github.com/jungkyun-dhive/ROBOPILOT.git
 cd ROBOPILOT
+git checkout claude/setup-postgresql-database-vrPI3
 ```
 
-### 2. 디렉토리 구조 설정
-```bash
-# Backend 배포 디렉토리 생성
-sudo mkdir -p /opt/robopilot
-sudo chown ec2-user:ec2-user /opt/robopilot
-
-# Frontend 배포 디렉토리 생성
-sudo mkdir -p /var/www/robopilot
-sudo chown ec2-user:ec2-user /var/www/robopilot
-```
-
-### 3. Nginx 설정
+### 2. Nginx 설정
 ```bash
 # Nginx 설정 파일 복사
-sudo cp deployment/nginx.conf /etc/nginx/sites-available/robopilot
+sudo cp deployment/nginx.conf /etc/nginx/conf.d/robopilot.conf
 
-# 기본 설정 비활성화
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# ROBOPILOT 설정 활성화
-sudo ln -sf /etc/nginx/sites-available/robopilot /etc/nginx/sites-enabled/
+# 기본 설정 비활성화 (충돌 방지)
+sudo mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.disabled || true
 
 # Nginx 설정 테스트
 sudo nginx -t
 
-# Nginx 재시작
-sudo systemctl restart nginx
-sudo systemctl enable nginx
+# Nginx 시작
+sudo systemctl start nginx
 ```
 
-### 4. Backend Systemd 서비스 설정
-```bash
-# 서비스 파일 복사
-sudo cp deployment/robopilot-backend.service /etc/systemd/system/
-
-# Systemd 리로드
-sudo systemctl daemon-reload
-
-# 서비스 활성화
-sudo systemctl enable robopilot-backend
-```
-
-### 5. 첫 배포
+### 3. 첫 배포
 ```bash
 # 배포 스크립트 실행 권한 부여
 chmod +x deploy.sh
@@ -92,103 +82,121 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-## 개발 모드 실행 (테스트용)
+## 배포 스크립트 (deploy.sh)
 
-### Frontend 개발 서버
-```bash
-cd frontend
-npm install
-npm run dev
-# http://13.125.59.147:5173
-```
+배포 스크립트는 다음 작업을 자동으로 수행합니다:
 
-### Backend 개발 서버
-```bash
-cd backend
-./mvnw spring-boot:run
-# http://13.125.59.147:8080
-```
+1. Git 저장소 업데이트
+2. Frontend 빌드 (npm run build)
+3. Nginx 설정 업데이트
+4. Docker Compose로 백엔드/PostgreSQL 재시작
+5. Nginx 재시작
+6. 서비스 상태 확인
 
-## 프로덕션 배포
-
-### 방법 1: 배포 스크립트 사용 (권장)
 ```bash
 cd ~/ROBOPILOT
 ./deploy.sh
 ```
 
-### 방법 2: 수동 배포
+## 수동 배포
 
-#### Frontend 빌드 및 배포
+### Frontend 빌드 및 배포
 ```bash
 cd ~/ROBOPILOT/frontend
 npm install
 npm run build
-sudo rm -rf /var/www/robopilot/*
-sudo cp -r dist/* /var/www/robopilot/
+
+# dist 폴더가 /home/ec2-user/ROBOPILOT/frontend/dist에 생성됨
+# Nginx가 직접 이 경로에서 파일을 서빙
 ```
 
-#### Backend 빌드 및 배포
+### Backend 및 Database 시작
 ```bash
-cd ~/ROBOPILOT/backend
-./mvnw clean package -DskipTests
-sudo cp target/*.jar /opt/robopilot/robopilot-backend.jar
-sudo systemctl restart robopilot-backend
+cd ~/ROBOPILOT
+
+# 컨테이너 시작
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f backend
 ```
 
 ## 서비스 관리
 
-### 서비스 상태 확인
+### Docker 컨테이너 상태 확인
 ```bash
-# Backend 상태
-sudo systemctl status robopilot-backend
-
-# Nginx 상태
-sudo systemctl status nginx
+cd ~/ROBOPILOT
+docker-compose ps
 ```
 
 ### 서비스 재시작
 ```bash
-# Backend 재시작
-sudo systemctl restart robopilot-backend
+# 백엔드만 재시작
+docker-compose restart backend
 
-# Nginx 재시작
-sudo systemctl restart nginx
+# 전체 재시작
+docker-compose restart
+
+# 전체 중지 및 재시작
+docker-compose down
+docker-compose up -d
 ```
 
 ### 로그 확인
 ```bash
-# Backend 로그
-sudo journalctl -u robopilot-backend -f
+# 백엔드 로그 (실시간)
+docker-compose logs -f backend
 
-# Nginx 액세스 로그
+# PostgreSQL 로그
+docker-compose logs -f postgres
+
+# 최근 50줄
+docker-compose logs --tail=50 backend
+
+# Nginx 로그
 sudo tail -f /var/log/nginx/access.log
-
-# Nginx 에러 로그
 sudo tail -f /var/log/nginx/error.log
+```
+
+### Nginx 관리
+```bash
+# 상태 확인
+sudo systemctl status nginx
+
+# 재시작 (설정 변경 후)
+sudo systemctl reload nginx
+
+# 설정 테스트
+sudo nginx -t
 ```
 
 ## 접속 주소
 
 - **Frontend**: http://13.125.59.147
-- **Backend API**: http://13.125.59.147:8080/api
+- **Backend API**: http://13.125.59.147/api
 - **개발 서버**: http://13.125.59.147:5173 (개발 모드)
 
-## 환경 변수 설정 (필요시)
+## 환경 변수 설정
 
-### Backend 환경 변수
-`/etc/systemd/system/robopilot-backend.service` 파일에서 수정:
-```ini
-Environment="AWS_REGION=ap-northeast-2"
-Environment="DYNAMODB_TABLE_PREFIX=robopilot"
-Environment="S3_BUCKET=robopilot-videos"
-Environment="JWT_SECRET=your-secret-key"
+docker-compose.yml 파일에서 환경 변수를 수정할 수 있습니다:
+
+```yaml
+backend:
+  environment:
+    - SPRING_PROFILES_ACTIVE=docker
+    - AWS_REGION=ap-northeast-2
+    - JWT_SECRET=your-secret-key
+    - DB_HOST=postgres
+    - DB_PORT=5432
+    - DB_NAME=robopilot
+    - DB_USER=robopilot
+    - DB_PASSWORD=robopilot
 ```
 
-수정 후:
+변경 후:
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart robopilot-backend
+docker-compose down
+docker-compose up -d
 ```
 
 ## 보안 그룹 설정 (AWS Console)
@@ -196,59 +204,92 @@ sudo systemctl restart robopilot-backend
 EC2 인스턴스의 보안 그룹에서 다음 포트를 열어야 합니다:
 
 - **80** (HTTP) - Frontend/Nginx
-- **8080** (Backend API) - 선택사항, Nginx를 통해 프록시
+- **443** (HTTPS) - SSL/TLS (선택사항)
 - **5173** (Vite Dev Server) - 개발 모드만
 - **22** (SSH) - 관리용
 - **1883** (MQTT) - 로봇/드론 통신용
+
+## 데이터베이스 관리
+
+### PostgreSQL 접속
+```bash
+# Docker 컨테이너를 통해 접속
+docker-compose exec postgres psql -U robopilot -d robopilot
+```
+
+### 데이터베이스 초기화
+```bash
+# 초기 데이터 삽입
+docker-compose exec postgres psql -U robopilot -d robopilot -f /docker-scripts/init-data.sql
+```
+
+### 데이터 백업
+```bash
+# 데이터베이스 덤프
+docker-compose exec postgres pg_dump -U robopilot robopilot > backup.sql
+
+# 복구
+docker-compose exec -T postgres psql -U robopilot -d robopilot < backup.sql
+```
 
 ## 트러블슈팅
 
 ### Frontend가 로드되지 않을 때
 ```bash
-# Nginx 상태 확인
-sudo systemctl status nginx
+# 1. 빌드 파일 확인
+ls -la /home/ec2-user/ROBOPILOT/frontend/dist/
 
-# 빌드 파일 확인
-ls -la /var/www/robopilot/
+# 2. Nginx 설정 확인
+sudo nginx -t
 
-# Nginx 재시작
+# 3. Nginx 로그 확인
+sudo tail -f /var/log/nginx/error.log
+
+# 4. Nginx 재시작
 sudo systemctl restart nginx
 ```
 
 ### Backend가 시작되지 않을 때
 ```bash
-# 로그 확인
-sudo journalctl -u robopilot-backend -n 100
+# 1. 컨테이너 상태 확인
+docker-compose ps
 
-# Java 버전 확인
-java -version
+# 2. 로그 확인
+docker-compose logs backend
 
-# 포트 사용 확인
-sudo netstat -tulpn | grep 8080
+# 3. 컨테이너 재시작
+docker-compose restart backend
+
+# 4. 전체 재빌드
+docker-compose down
+docker-compose build --no-cache backend
+docker-compose up -d
 ```
 
-### 메모리 부족 시 (t3.micro)
-Backend 서비스 파일에 메모리 제한 추가:
-```ini
-Environment="JAVA_OPTS=-Xmx512m -Xms256m"
-```
-
-## CI/CD 파이프라인 (향후)
-
-GitHub Actions를 통한 자동 배포 설정 가능:
-1. GitHub에 코드 푸시
-2. 자동 빌드 및 테스트
-3. EC2에 자동 배포
-4. 서비스 재시작
-
-## 백업 및 복구
-
-### 데이터 백업
+### 디스크 공간 부족 시
 ```bash
-# DynamoDB 백업 (AWS CLI 사용)
-aws dynamodb create-backup --table-name robopilot-users --backup-name backup-$(date +%Y%m%d)
+# Docker 시스템 정리
+docker system prune -a --volumes -f
 
-# S3 비디오 백업 (자동 버저닝 설정)
+# 빌드 캐시 정리
+docker builder prune -a -f
+
+# 로그 정리
+sudo journalctl --vacuum-time=1d
+sudo journalctl --vacuum-size=50M
+
+# 디스크 사용량 확인
+df -h
+du -h /var/lib/docker | sort -rh | head -20
+```
+
+### 포트 충돌 시
+```bash
+# 포트 사용 확인
+sudo netstat -tulpn | grep -E '80|8080|5432|1883'
+
+# 사용 중인 프로세스 종료
+sudo lsof -ti:8080 | xargs sudo kill -9
 ```
 
 ## 모니터링
@@ -256,20 +297,40 @@ aws dynamodb create-backup --table-name robopilot-users --backup-name backup-$(d
 ### 시스템 리소스 확인
 ```bash
 # CPU/메모리 사용량
-htop
+docker stats
 
 # 디스크 사용량
 df -h
 
 # 네트워크 연결
 sudo netstat -tulpn
+
+# 컨테이너별 리소스 사용량
+docker stats --no-stream
+```
+
+### 헬스 체크
+```bash
+# 백엔드 API 테스트
+curl http://localhost:8080/actuator/health
+
+# 프론트엔드 접근 테스트
+curl -I http://localhost
 ```
 
 ## 성능 최적화
 
-1. **Frontend**: Gzip 압축 활성화 (Nginx)
-2. **Backend**: JVM 메모리 튜닝
-3. **Database**: DynamoDB 캐싱 설정
+1. **Frontend**:
+   - Gzip 압축 활성화 (Nginx 설정에 포함됨)
+   - 정적 파일 캐싱 (1년)
+
+2. **Backend**:
+   - JVM 메모리 튜닝 (docker-compose.yml에서 JAVA_OPTS 설정)
+   - Connection pool 설정
+
+3. **Database**:
+   - PostgreSQL 튜닝 (shared_buffers, work_mem)
+
 4. **CDN**: CloudFront 사용 (선택사항)
 
 ## 업데이트 절차
@@ -277,12 +338,41 @@ sudo netstat -tulpn
 ```bash
 # 1. 코드 업데이트
 cd ~/ROBOPILOT
-git pull origin main
+git pull origin claude/setup-postgresql-database-vrPI3
 
 # 2. 배포 스크립트 실행
 ./deploy.sh
 
 # 3. 서비스 확인
-sudo systemctl status robopilot-backend
+docker-compose ps
+docker-compose logs --tail=50 backend
 sudo systemctl status nginx
+```
+
+## 로그인 계정
+
+시스템에 기본 제공되는 테스트 계정:
+
+- **System Admin**: admin@robopilot.com / admin123
+- **Company Admin**: manager@fpt.com.vn / admin123
+- **Operator**: viewer@fpt.com.vn / operator123
+
+## 개발 모드
+
+### Frontend 개발 서버
+```bash
+cd ~/ROBOPILOT/frontend
+npm install
+npm run dev
+# http://13.125.59.147:5173
+```
+
+### Backend 개발 서버 (로컬)
+```bash
+# PostgreSQL은 Docker로 실행
+docker-compose up -d postgres
+
+# Backend는 로컬에서 실행
+cd ~/ROBOPILOT/backend
+mvn spring-boot:run
 ```
