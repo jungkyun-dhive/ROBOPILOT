@@ -59,4 +59,12 @@ public class MissionService {
     public List<Mission> getMissionsByCompanyId(String companyId) {
         return missionRepository.findByCompanyId(companyId);
     }
+
+    @Transactional(readOnly = true)
+    public List<Mission> getMissionsBySiteIds(List<String> siteIds) {
+        if (siteIds == null || siteIds.isEmpty()) {
+            return List.of();
+        }
+        return missionRepository.findBySiteIdIn(siteIds);
+    }
 }

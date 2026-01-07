@@ -9,6 +9,7 @@ import java.util.List;
 @Repository
 public interface MissionRepository extends JpaRepository<Mission, String> {
     List<Mission> findBySiteId(String siteId);
+    List<Mission> findBySiteIdIn(List<String> siteIds);
     List<Mission> findByRobotId(String robotId);
     List<Mission> findByStatus(String status);
     List<Mission> findByCompanyId(String companyId);

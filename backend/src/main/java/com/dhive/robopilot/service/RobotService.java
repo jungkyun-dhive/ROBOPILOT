@@ -59,4 +59,12 @@ public class RobotService {
     public List<Robot> getRobotsByCompanyId(String companyId) {
         return robotRepository.findByCompanyId(companyId);
     }
+
+    @Transactional(readOnly = true)
+    public List<Robot> getRobotsBySiteIds(List<String> siteIds) {
+        if (siteIds == null || siteIds.isEmpty()) {
+            return List.of();
+        }
+        return robotRepository.findBySiteIdIn(siteIds);
+    }
 }

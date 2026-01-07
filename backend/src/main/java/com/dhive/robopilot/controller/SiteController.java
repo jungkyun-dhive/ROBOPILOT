@@ -32,7 +32,15 @@ public class SiteController {
             return ResponseEntity.ok(siteService.getAllSites());
         }
 
-        // COMPANY_ADMIN and OPERATOR can only see sites from their company
+        // OPERATOR can only see their assigned sites
+        if ("OPERATOR".equals(currentUser.getRole())) {
+            if (currentUser.getSiteIds() != null && !currentUser.getSiteIds().isEmpty()) {
+                return ResponseEntity.ok(siteService.getSitesByIds(currentUser.getSiteIds()));
+            }
+            return ResponseEntity.ok(List.of());
+        }
+
+        // COMPANY_ADMIN can see all sites from their company
         if (currentUser.getCompanyId() != null) {
             return ResponseEntity.ok(siteService.getSitesByCompanyId(currentUser.getCompanyId()));
         }

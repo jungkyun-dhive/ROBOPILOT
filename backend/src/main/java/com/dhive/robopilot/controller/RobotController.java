@@ -32,7 +32,15 @@ public class RobotController {
             return ResponseEntity.ok(robotService.getAllRobots());
         }
 
-        // COMPANY_ADMIN and OPERATOR can only see robots from their company
+        // OPERATOR can only see robots from their assigned sites
+        if ("OPERATOR".equals(currentUser.getRole())) {
+            if (currentUser.getSiteIds() != null && !currentUser.getSiteIds().isEmpty()) {
+                return ResponseEntity.ok(robotService.getRobotsBySiteIds(currentUser.getSiteIds()));
+            }
+            return ResponseEntity.ok(List.of());
+        }
+
+        // COMPANY_ADMIN can see all robots from their company
         if (currentUser.getCompanyId() != null) {
             return ResponseEntity.ok(robotService.getRobotsByCompanyId(currentUser.getCompanyId()));
         }

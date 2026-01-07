@@ -31,6 +31,13 @@ function Tasks() {
     loadData();
   }, []);
 
+  // Auto-select user's company if not System Admin
+  useEffect(() => {
+    if (user && user.role !== 'SYSTEM_ADMIN' && user.companyId && !selectedCompanyId) {
+      setSelectedCompanyId(user.companyId);
+    }
+  }, [user, selectedCompanyId]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -56,9 +63,10 @@ function Tasks() {
   const userCompanyId = user?.companyId;
 
   // 사용자가 접근 가능한 현장 필터링
-  const availableSites = selectedCompanyId
+  const effectiveCompanyId = selectedCompanyId || userCompanyId;
+  const availableSites = effectiveCompanyId
     ? sites.filter((site) => {
-        const matchesCompany = site.companyId === selectedCompanyId;
+        const matchesCompany = site.companyId === effectiveCompanyId;
         // Operator는 할당된 현장만 볼 수 있음
         if (user?.role === 'OPERATOR') {
           return matchesCompany && user.siteIds?.includes(site.id);

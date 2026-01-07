@@ -32,7 +32,15 @@ public class MissionController {
             return ResponseEntity.ok(missionService.getAllMissions());
         }
 
-        // COMPANY_ADMIN and OPERATOR can only see missions from their company
+        // OPERATOR can only see missions from their assigned sites
+        if ("OPERATOR".equals(currentUser.getRole())) {
+            if (currentUser.getSiteIds() != null && !currentUser.getSiteIds().isEmpty()) {
+                return ResponseEntity.ok(missionService.getMissionsBySiteIds(currentUser.getSiteIds()));
+            }
+            return ResponseEntity.ok(List.of());
+        }
+
+        // COMPANY_ADMIN can see all missions from their company
         if (currentUser.getCompanyId() != null) {
             return ResponseEntity.ok(missionService.getMissionsByCompanyId(currentUser.getCompanyId()));
         }

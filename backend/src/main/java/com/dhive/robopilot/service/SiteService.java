@@ -49,4 +49,12 @@ public class SiteService {
     public void deleteSite(String id) {
         siteRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public List<Site> getSitesByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return siteRepository.findByIdIn(ids);
+    }
 }
