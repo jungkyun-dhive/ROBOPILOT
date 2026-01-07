@@ -30,7 +30,13 @@ sudo cp deployment/nginx.conf /etc/nginx/conf.d/robopilot.conf
 # 4. Docker Compose로 백엔드 및 PostgreSQL 재시작
 echo "4. Docker 서비스 재시작..."
 sudo docker-compose down
-sudo docker-compose build --no-cache backend
+
+echo "4-1. 백엔드 이미지 빌드..."
+cd backend
+sudo docker build --no-cache -t robopilot-backend .
+cd ..
+
+echo "4-2. 컨테이너 시작..."
 sudo docker-compose up -d
 
 # 5. Nginx 재시작
