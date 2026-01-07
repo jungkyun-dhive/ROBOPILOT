@@ -122,23 +122,23 @@ VALUES
 INSERT INTO users (id, username, password, name, email, role, company_id, company_name, status, created_at, updated_at)
 VALUES
     -- System Admin: password = admin123
-    ('user-admin-001', 'admin', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    ('user-admin-001', 'admin', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '시스템 관리자', 'admin@robopilot.com', 'SYSTEM_ADMIN', NULL, NULL, 'ACTIVE', NOW(), NOW()),
 
     -- Company Admin: password = admin123
-    ('user-fpt-001', 'fpt.manager', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    ('user-fpt-001', 'fpt.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      'Nguyen Van A', 'manager@fpt.com.vn', 'COMPANY_ADMIN', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW()),
 
     -- Company Admin: password = admin123
-    ('user-hhi-001', 'hhi.manager', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    ('user-hhi-001', 'hhi.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '김철수', 'manager@hhi.co.kr', 'COMPANY_ADMIN', 'hyundai-heavy-001', '현대중공업', 'ACTIVE', NOW(), NOW()),
 
     -- Company Admin: password = admin123
-    ('user-skt-001', 'skt.manager', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    ('user-skt-001', 'skt.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
     -- Operator: password = admin123
-    ('user-viewer-001', 'viewer', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    ('user-viewer-001', 'viewer', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '일반 사용자', 'viewer@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
 
 -- 데이터 확인 쿼리
