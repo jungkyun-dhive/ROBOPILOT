@@ -77,7 +77,7 @@ public class AuthController {
         }
 
         // Generate JWT token
-        log.info("Login successful for user: {}", emailOrUsername);
+        log.info("Login successful for user: {} with siteIds: {}", emailOrUsername, user.getSiteIds());
         String token = jwtUtil.generateToken(
             user.getId(),
             user.getUsername(),
@@ -94,7 +94,8 @@ public class AuthController {
             "email", user.getEmail(),
             "role", user.getRole(),
             "companyId", user.getCompanyId() != null ? user.getCompanyId() : "",
-            "companyName", user.getCompanyName() != null ? user.getCompanyName() : ""
+            "companyName", user.getCompanyName() != null ? user.getCompanyName() : "",
+            "siteIds", user.getSiteIds() != null ? user.getSiteIds() : java.util.List.of()
         ));
 
         return ResponseEntity.ok(response);
@@ -126,6 +127,7 @@ public class AuthController {
         response.put("role", user.getRole());
         response.put("companyId", user.getCompanyId() != null ? user.getCompanyId() : "");
         response.put("companyName", user.getCompanyName() != null ? user.getCompanyName() : "");
+        response.put("siteIds", user.getSiteIds() != null ? user.getSiteIds() : java.util.List.of());
 
         return ResponseEntity.ok(response);
     }
