@@ -33,7 +33,7 @@ sudo docker-compose down
 
 echo "4-1. 백엔드 이미지 빌드..."
 cd backend
-sudo docker build --no-cache -t robopilot-backend .
+sudo docker build -t robopilot-backend .
 cd ..
 
 echo "4-2. 컨테이너 시작..."
