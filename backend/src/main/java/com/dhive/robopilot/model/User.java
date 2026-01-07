@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -42,6 +43,11 @@ public class User {
 
     @Column(nullable = false)
     private String status; // ACTIVE, INACTIVE
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_sites", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "site_id")
+    private List<String> siteIds;
 
     @CreationTimestamp
     @Column(updatable = false)
