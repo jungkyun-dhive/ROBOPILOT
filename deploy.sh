@@ -29,9 +29,9 @@ sudo cp deployment/nginx.conf /etc/nginx/conf.d/robopilot.conf
 
 # 4. Docker Compose로 백엔드 및 PostgreSQL 재시작
 echo "4. Docker 서비스 재시작..."
-sudo docker compose down
-sudo docker compose build --no-cache backend
-sudo docker compose up -d
+sudo docker-compose down
+sudo docker-compose build --no-cache backend
+sudo docker-compose up -d
 
 # 5. Nginx 재시작
 echo "5. Nginx 재시작..."
@@ -41,7 +41,7 @@ sudo systemctl reload nginx
 echo "6. 서비스 상태 확인..."
 echo ""
 echo "Docker 컨테이너 상태:"
-sudo docker compose ps
+sudo docker-compose ps
 
 echo ""
 echo "Nginx 상태:"
@@ -49,7 +49,7 @@ sudo systemctl status nginx --no-pager -l
 
 echo ""
 echo "백엔드 로그 (최근 20줄):"
-sudo docker compose logs --tail=20 backend
+sudo docker-compose logs --tail=20 backend
 
 echo "======================================"
 echo "배포 완료!"
@@ -57,5 +57,5 @@ echo "Frontend: http://13.125.59.147 (Nginx 정적 파일)"
 echo "Backend API: http://13.125.59.147/api (Docker)"
 echo "======================================"
 echo ""
-echo "로그 확인: sudo docker compose logs -f backend"
+echo "로그 확인: sudo docker-compose logs -f backend"
 echo "======================================"
