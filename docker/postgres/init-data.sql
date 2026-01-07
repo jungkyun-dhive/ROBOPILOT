@@ -138,14 +138,14 @@ VALUES
      '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
     -- Operator: password = operator123
-    ('user-viewer-001', 'viewer', '$2a$10$MmoKzDvofLvOScOvvCoL6e0EmWjMir5XKMyQ0eHc4clxryrWLs8FK',
-     '일반 사용자', 'viewer@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
+    ('user-operator-001', 'operator', '$2a$10$MmoKzDvofLvOScOvvCoL6e0EmWjMir5XKMyQ0eHc4clxryrWLs8FK',
+     '현장 운영자', 'operator@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
 
 -- 6. 사용자-현장 할당 데이터 (Operator의 담당 현장)
 INSERT INTO user_sites (user_id, site_id)
 VALUES
-    -- viewer@fpt.com.vn에게 FPT 하노이 본사 할당
-    ('user-viewer-001', 'site-fpt-hanoi');
+    -- operator@fpt.com.vn에게 FPT 하노이 본사 할당
+    ('user-operator-001', 'site-fpt-hanoi');
 
 -- 데이터 확인 쿼리
 SELECT '회사 수: ' || COUNT(*) FROM companies;
