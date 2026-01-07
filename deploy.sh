@@ -39,6 +39,16 @@ cd ..
 echo "4-2. 컨테이너 시작..."
 sudo docker-compose up -d
 
+echo "4-3. PostgreSQL 초기화 대기..."
+sleep 15
+
+echo "4-4. 데이터베이스 초기화..."
+sudo docker cp docker/postgres/init-data.sql robopilot-postgres-1:/tmp/init-data.sql
+sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -f /tmp/init-data.sql
+
+echo "4-5. 데이터 확인..."
+sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -c "SELECT COUNT(*) as user_count FROM users;"
+
 # 5. Nginx 재시작
 echo "5. Nginx 재시작..."
 sudo systemctl reload nginx
