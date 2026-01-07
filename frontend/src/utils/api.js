@@ -132,4 +132,10 @@ export const userApi = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
+// Audit Log API
+export const auditLogApi = {
+  getAll: () => api.get('/audit-logs'),
+  create: (data) => api.post('/audit-logs', data),
+};
+
 export default api;
