@@ -118,28 +118,34 @@ VALUES
      NULL, NULL, NOW(), NOW());
 
 -- 5. 사용자 데이터 (샘플)
--- 비밀번호: System Admin & Company Admin = 'admin123', Operator = 'operator123'
+-- 비밀번호: 모든 계정 = 'admin123' (Spring Security BCrypt $2a$ 호환)
 INSERT INTO users (id, username, password, name, email, role, company_id, company_name, status, created_at, updated_at)
 VALUES
-    -- System Admin: admin123
-    ('user-admin-001', 'admin', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- System Admin: password = admin123
+    ('user-admin-001', 'admin', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '시스템 관리자', 'admin@robopilot.com', 'SYSTEM_ADMIN', NULL, NULL, 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-fpt-001', 'fpt.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-fpt-001', 'fpt.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      'Nguyen Van A', 'manager@fpt.com.vn', 'COMPANY_ADMIN', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-hhi-001', 'hhi.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-hhi-001', 'hhi.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '김철수', 'manager@hhi.co.kr', 'COMPANY_ADMIN', 'hyundai-heavy-001', '현대중공업', 'ACTIVE', NOW(), NOW()),
 
-    -- Company Admin: admin123
-    ('user-skt-001', 'skt.manager', '$2b$12$2IsF36.bgCX9RziylRHmQeiEndtVKZAic3XWgm7bPV1v4JcBx4Ks6',
+    -- Company Admin: password = admin123
+    ('user-skt-001', 'skt.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
-    -- Operator: operator123
-    ('user-viewer-001', 'viewer', '$2b$12$936rqZA2.OZRMFdRY0IY.e8qnWu2eaULmJj5g6kXlsKbihO.alzA2',
-     '일반 사용자', 'viewer@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
+    -- Operator: password = operator123
+    ('user-operator-001', 'operator', '$2a$10$MmoKzDvofLvOScOvvCoL6e0EmWjMir5XKMyQ0eHc4clxryrWLs8FK',
+     '현장 운영자', 'operator@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
+
+-- 6. 사용자-현장 할당 데이터 (Operator의 담당 현장)
+INSERT INTO user_sites (user_id, site_id)
+VALUES
+    -- operator@fpt.com.vn에게 FPT 하노이 본사 할당
+    ('user-operator-001', 'site-fpt-hanoi');
 
 -- 데이터 확인 쿼리
 SELECT '회사 수: ' || COUNT(*) FROM companies;

@@ -103,7 +103,7 @@ function Login() {
                 <span className="font-semibold">Company Admin:</span> manager@fpt.com.vn / admin123
               </div>
               <div>
-                <span className="font-semibold">Operator:</span> viewer@fpt.com.vn / operator123
+                <span className="font-semibold">Operator:</span> operator@fpt.com.vn / operator123
               </div>
             </div>
           </div>

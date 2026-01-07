@@ -2,10 +2,13 @@ package com.dhive.robopilot.controller;
 
 import com.dhive.robopilot.model.User;
 import com.dhive.robopilot.service.UserService;
+import com.dhive.robopilot.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +24,7 @@ public class AuthController {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> credentials) {
@@ -48,8 +52,16 @@ public class AuthController {
         log.info("User found: id={}, email={}, role={}", user.getId(), user.getEmail(), user.getRole());
 
         // Verify password
+        log.info("Input password length: {}", password != null ? password.length() : 0);
+        log.info("Stored hash: {}", user.getPassword());
+        log.info("Hash starts with: {}", user.getPassword().substring(0, 7));
+
         boolean passwordMatches = passwordEncoder.matches(password, user.getPassword());
         log.info("Password verification: {}", passwordMatches ? "SUCCESS" : "FAILED");
+
+        // Additional debugging: try encoding the input password to see the format
+        String testHash = passwordEncoder.encode(password);
+        log.info("Test encoding of input password: {}", testHash.substring(0, 30));
 
         if (!passwordMatches) {
             log.warn("Password mismatch for user: {}", emailOrUsername);
@@ -64,11 +76,17 @@ public class AuthController {
                 .body(Map.of("error", "User account is not active"));
         }
 
-        // Return user info
-        log.info("Login successful for user: {}", emailOrUsername);
+        // Generate JWT token
+        log.info("Login successful for user: {} with siteIds: {}", emailOrUsername, user.getSiteIds());
+        String token = jwtUtil.generateToken(
+            user.getId(),
+            user.getUsername(),
+            user.getRole(),
+            user.getCompanyId()
+        );
 
         Map<String, Object> response = new HashMap<>();
-        response.put("token", "jwt-token-" + user.getId());
+        response.put("token", token);
         response.put("user", Map.of(
             "id", user.getId(),
             "username", user.getUsername(),
@@ -76,7 +94,8 @@ public class AuthController {
             "email", user.getEmail(),
             "role", user.getRole(),
             "companyId", user.getCompanyId() != null ? user.getCompanyId() : "",
-            "companyName", user.getCompanyName() != null ? user.getCompanyName() : ""
+            "companyName", user.getCompanyName() != null ? user.getCompanyName() : "",
+            "siteIds", user.getSiteIds() != null ? user.getSiteIds() : java.util.List.of()
         ));
 
         return ResponseEntity.ok(response);
@@ -91,12 +110,25 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser() {
-        // TODO: Get actual user from JWT token
-        Map<String, Object> user = new HashMap<>();
-        user.put("username", "admin");
-        user.put("name", "Admin User");
-        user.put("email", "admin@robopilot.com");
-        user.put("role", "ADMIN");
-        return ResponseEntity.ok(user);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Not authenticated"));
+        }
+
+        User user = (User) authentication.getPrincipal();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", user.getId());
+        response.put("username", user.getUsername());
+        response.put("name", user.getName());
+        response.put("email", user.getEmail());
+        response.put("role", user.getRole());
+        response.put("companyId", user.getCompanyId() != null ? user.getCompanyId() : "");
+        response.put("companyName", user.getCompanyName() != null ? user.getCompanyName() : "");
+        response.put("siteIds", user.getSiteIds() != null ? user.getSiteIds() : java.util.List.of());
+
+        return ResponseEntity.ok(response);
     }
 }

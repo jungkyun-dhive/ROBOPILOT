@@ -8,7 +8,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - AWS_REGION=ap-northeast-2
-      - JWT_SECRET=${JWT_SECRET:-robopilot-secret-key}
+      - JWT_SECRET=${JWT_SECRET:-robopilot-jwt-secret-key-for-production-minimum-256-bits-required-by-hmac-sha}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=robopilot

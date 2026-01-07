@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface SiteRepository extends JpaRepository<Site, String> {
     List<Site> findByCompanyId(String companyId);
+    List<Site> findByIdIn(List<String> ids);
     List<Site> findByStatus(String status);
 }

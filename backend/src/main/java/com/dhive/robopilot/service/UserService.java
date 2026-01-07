@@ -40,9 +40,38 @@ public class UserService {
     }
 
     @Transactional
-    public User updateUser(String id, User user) {
-        user.setId(id);
-        return userRepository.save(user);
+    public User updateUser(String id, User updatedUser) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+        // Update only non-null fields from the request
+        if (updatedUser.getName() != null) {
+            existingUser.setName(updatedUser.getName());
+        }
+        if (updatedUser.getEmail() != null) {
+            existingUser.setEmail(updatedUser.getEmail());
+        }
+        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+            existingUser.setPassword(updatedUser.getPassword());
+        }
+        if (updatedUser.getRole() != null) {
+            existingUser.setRole(updatedUser.getRole());
+        }
+        if (updatedUser.getCompanyId() != null) {
+            existingUser.setCompanyId(updatedUser.getCompanyId());
+        }
+        if (updatedUser.getCompanyName() != null) {
+            existingUser.setCompanyName(updatedUser.getCompanyName());
+        }
+        if (updatedUser.getStatus() != null) {
+            existingUser.setStatus(updatedUser.getStatus());
+        }
+        // Update siteIds (can be empty list for non-operators)
+        if (updatedUser.getSiteIds() != null) {
+            existingUser.setSiteIds(updatedUser.getSiteIds());
+        }
+
+        return userRepository.save(existingUser);
     }
 
     @Transactional
@@ -58,5 +87,10 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> getUsersByCompanyId(String companyId) {
+        return userRepository.findByCompanyId(companyId);
     }
 }

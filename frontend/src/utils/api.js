@@ -11,9 +11,14 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -125,6 +130,12 @@ export const userApi = {
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
+};
+
+// Audit Log API
+export const auditLogApi = {
+  getAll: () => api.get('/audit-logs'),
+  create: (data) => api.post('/audit-logs', data),
 };
 
 export default api;

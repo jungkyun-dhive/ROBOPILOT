@@ -1,10 +1,13 @@
 package com.dhive.robopilot.controller;
 
 import com.dhive.robopilot.model.Site;
+import com.dhive.robopilot.model.User;
 import com.dhive.robopilot.service.SiteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +20,32 @@ public class SiteController {
 
     @GetMapping
     public ResponseEntity<List<Site>> getAllSites() {
-        return ResponseEntity.ok(siteService.getAllSites());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User currentUser = (User) authentication.getPrincipal();
+
+        // SYSTEM_ADMIN can see all sites
+        if ("SYSTEM_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.ok(siteService.getAllSites());
+        }
+
+        // OPERATOR can only see their assigned sites
+        if ("OPERATOR".equals(currentUser.getRole())) {
+            if (currentUser.getSiteIds() != null && !currentUser.getSiteIds().isEmpty()) {
+                return ResponseEntity.ok(siteService.getSitesByIds(currentUser.getSiteIds()));
+            }
+            return ResponseEntity.ok(List.of());
+        }
+
+        // COMPANY_ADMIN can see all sites from their company
+        if (currentUser.getCompanyId() != null) {
+            return ResponseEntity.ok(siteService.getSitesByCompanyId(currentUser.getCompanyId()));
+        }
+
+        return ResponseEntity.ok(List.of());
     }
 
     @GetMapping("/{id}")

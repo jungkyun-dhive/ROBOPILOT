@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Bot, Building2, MapPin, Package, Search } from 'lucide-react';
 import Modal from '../components/Modal';
 import { robotApi, companyApi, siteApi } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const robotTypes = ['사족보행', '바퀴이동', '드론'];
 
 function Robots() {
+  const { user } = useAuth();
   const [robots, setRobots] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [sites, setSites] = useState([]);
@@ -201,13 +203,15 @@ function Robots() {
           <h1 className="text-2xl font-bold text-gray-900">로봇 관리</h1>
           <p className="text-sm text-gray-600">등록된 로봇 및 드론 목록</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>로봇 추가</span>
-        </button>
+        {user?.role !== 'OPERATOR' && (
+          <button
+            onClick={handleAdd}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>로봇 추가</span>
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}

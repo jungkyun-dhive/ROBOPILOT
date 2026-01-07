@@ -1,10 +1,13 @@
 package com.dhive.robopilot.controller;
 
 import com.dhive.robopilot.model.Mission;
+import com.dhive.robopilot.model.User;
 import com.dhive.robopilot.service.MissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +20,32 @@ public class MissionController {
 
     @GetMapping
     public ResponseEntity<List<Mission>> getAllMissions() {
-        return ResponseEntity.ok(missionService.getAllMissions());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User currentUser = (User) authentication.getPrincipal();
+
+        // SYSTEM_ADMIN can see all missions
+        if ("SYSTEM_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.ok(missionService.getAllMissions());
+        }
+
+        // OPERATOR can only see missions from their assigned sites
+        if ("OPERATOR".equals(currentUser.getRole())) {
+            if (currentUser.getSiteIds() != null && !currentUser.getSiteIds().isEmpty()) {
+                return ResponseEntity.ok(missionService.getMissionsBySiteIds(currentUser.getSiteIds()));
+            }
+            return ResponseEntity.ok(List.of());
+        }
+
+        // COMPANY_ADMIN can see all missions from their company
+        if (currentUser.getCompanyId() != null) {
+            return ResponseEntity.ok(missionService.getMissionsByCompanyId(currentUser.getCompanyId()));
+        }
+
+        return ResponseEntity.ok(List.of());
     }
 
     @GetMapping("/{id}")

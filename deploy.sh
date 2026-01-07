@@ -12,7 +12,9 @@ echo "======================================"
 # 1. 저장소 업데이트
 echo "1. Git 저장소 업데이트..."
 cd /home/ec2-user/ROBOPILOT
-git pull origin claude/setup-postgresql-database-vrPI3
+CURRENT_BRANCH=$(git branch --show-current)
+echo "현재 브랜치: $CURRENT_BRANCH"
+git pull origin $CURRENT_BRANCH
 
 # 2. Frontend 빌드
 echo "2. Frontend 빌드 중..."
@@ -27,8 +29,34 @@ sudo cp deployment/nginx.conf /etc/nginx/conf.d/robopilot.conf
 
 # 4. Docker Compose로 백엔드 및 PostgreSQL 재시작
 echo "4. Docker 서비스 재시작..."
-docker-compose down
-docker-compose up -d
+sudo docker-compose down
+
+echo "4-1. 백엔드 이미지 빌드..."
+cd backend
+sudo docker build -t robopilot-backend .
+cd ..
+
+echo "4-2. 컨테이너 시작..."
+sudo docker-compose up -d
+
+echo "4-3. PostgreSQL 초기화 대기..."
+sleep 20
+
+echo "4-4. 데이터베이스 확인 및 초기화..."
+# 사용자 테이블 확인
+USER_COUNT=$(sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null || echo "0")
+
+if [ "$USER_COUNT" -eq "0" ]; then
+    echo "데이터가 없습니다. 초기 데이터를 로드합니다..."
+    sudo docker cp docker/postgres/init-data.sql robopilot-postgres-1:/tmp/init-data.sql
+    sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -f /tmp/init-data.sql
+    echo "초기 데이터 로드 완료!"
+else
+    echo "기존 데이터가 있습니다. 초기화를 건너뜁니다. (사용자 수: $USER_COUNT)"
+fi
+
+echo "4-5. 최종 데이터 확인..."
+sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -c "SELECT COUNT(*) as user_count FROM users;"
 
 # 5. Nginx 재시작
 echo "5. Nginx 재시작..."
@@ -38,7 +66,7 @@ sudo systemctl reload nginx
 echo "6. 서비스 상태 확인..."
 echo ""
 echo "Docker 컨테이너 상태:"
-docker-compose ps
+sudo docker-compose ps
 
 echo ""
 echo "Nginx 상태:"
@@ -46,7 +74,7 @@ sudo systemctl status nginx --no-pager -l
 
 echo ""
 echo "백엔드 로그 (최근 20줄):"
-docker-compose logs --tail=20 backend
+sudo docker-compose logs --tail=20 backend
 
 echo "======================================"
 echo "배포 완료!"
@@ -54,5 +82,5 @@ echo "Frontend: http://13.125.59.147 (Nginx 정적 파일)"
 echo "Backend API: http://13.125.59.147/api (Docker)"
 echo "======================================"
 echo ""
-echo "로그 확인: docker-compose logs -f backend"
+echo "로그 확인: sudo docker-compose logs -f backend"
 echo "======================================"

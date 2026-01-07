@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Workflow, Building2, MapPin, Bot, Clock, FileText, Search } from 'lucide-react';
 import Modal from '../components/Modal';
 import { missionApi, companyApi, siteApi, robotApi } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const missionTypes = ['순찰', '점검', '배송', '청소', '모니터링'];
 
 function Missions() {
+  const { user } = useAuth();
   const [missions, setMissions] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [sites, setSites] = useState([]);
@@ -207,13 +209,15 @@ function Missions() {
           <h1 className="text-2xl font-bold text-gray-900">미션 관리</h1>
           <p className="text-sm text-gray-600">로봇 및 드론 미션 관리</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>미션 추가</span>
-        </button>
+        {user?.role !== 'OPERATOR' && (
+          <button
+            onClick={handleAdd}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>미션 추가</span>
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}

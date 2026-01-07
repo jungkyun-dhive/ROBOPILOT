@@ -9,6 +9,7 @@ import Sites from '../pages/Sites';
 import Missions from '../pages/Missions';
 import Robots from '../pages/Robots';
 import Users from '../pages/Users';
+import History from '../pages/History';
 import DashboardLayout from '../layouts/DashboardLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -39,6 +40,7 @@ function AppRoutes() {
           <Route path="missions" element={<Missions />} />
           <Route path="robots" element={<Robots />} />
           <Route path="users" element={<Users />} />
+          <Route path="history" element={<History />} />
         </Route>
       </Routes>
     </Router>
