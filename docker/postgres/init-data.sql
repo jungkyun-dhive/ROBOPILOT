@@ -137,8 +137,8 @@ VALUES
     ('user-skt-001', 'skt.manager', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
      '이민수', 'manager@sktelecom.com', 'COMPANY_ADMIN', 'sk-telecom-001', 'SK텔레콤', 'ACTIVE', NOW(), NOW()),
 
-    -- Operator: password = admin123
-    ('user-viewer-001', 'viewer', '$2a$10$IGOtkzW2HDzTbvTSXtBWV.02KidpAkz4W.f2PTByjCWmZkwCTdqDa',
+    -- Operator: password = operator123
+    ('user-viewer-001', 'viewer', '$2a$10$MmoKzDvofLvOScOvvCoL6e0EmWjMir5XKMyQ0eHc4clxryrWLs8FK',
      '일반 사용자', 'viewer@fpt.com.vn', 'OPERATOR', 'fpt-software-001', 'FPT Software', 'ACTIVE', NOW(), NOW());
 
 -- 데이터 확인 쿼리
