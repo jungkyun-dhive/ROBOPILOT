@@ -40,13 +40,22 @@ echo "4-2. 컨테이너 시작..."
 sudo docker-compose up -d
 
 echo "4-3. PostgreSQL 초기화 대기..."
-sleep 15
+sleep 20
 
-echo "4-4. 데이터베이스 초기화..."
-sudo docker cp docker/postgres/init-data.sql robopilot-postgres-1:/tmp/init-data.sql
-sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -f /tmp/init-data.sql
+echo "4-4. 데이터베이스 확인 및 초기화..."
+# 사용자 테이블 확인
+USER_COUNT=$(sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null || echo "0")
 
-echo "4-5. 데이터 확인..."
+if [ "$USER_COUNT" -eq "0" ]; then
+    echo "데이터가 없습니다. 초기 데이터를 로드합니다..."
+    sudo docker cp docker/postgres/init-data.sql robopilot-postgres-1:/tmp/init-data.sql
+    sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -f /tmp/init-data.sql
+    echo "초기 데이터 로드 완료!"
+else
+    echo "기존 데이터가 있습니다. 초기화를 건너뜁니다. (사용자 수: $USER_COUNT)"
+fi
+
+echo "4-5. 최종 데이터 확인..."
 sudo docker exec robopilot-postgres-1 psql -U robopilot -d robopilot -c "SELECT COUNT(*) as user_count FROM users;"
 
 # 5. Nginx 재시작
