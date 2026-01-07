@@ -52,8 +52,16 @@ public class AuthController {
         log.info("User found: id={}, email={}, role={}", user.getId(), user.getEmail(), user.getRole());
 
         // Verify password
+        log.info("Input password length: {}", password != null ? password.length() : 0);
+        log.info("Stored hash: {}", user.getPassword());
+        log.info("Hash starts with: {}", user.getPassword().substring(0, 7));
+
         boolean passwordMatches = passwordEncoder.matches(password, user.getPassword());
         log.info("Password verification: {}", passwordMatches ? "SUCCESS" : "FAILED");
+
+        // Additional debugging: try encoding the input password to see the format
+        String testHash = passwordEncoder.encode(password);
+        log.info("Test encoding of input password: {}", testHash.substring(0, 30));
 
         if (!passwordMatches) {
             log.warn("Password mismatch for user: {}", emailOrUsername);
