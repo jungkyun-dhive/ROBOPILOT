@@ -31,18 +31,8 @@ function drawLidarMap(ctx, mapId) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
 
-  // ── 1 m grid (drawn over whole canvas; outside will be covered by black later) ─
-  ctx.strokeStyle = GRD;
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x <= w; x += G) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y <= h; y += G) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-  }
-
   // ── Draw helpers ─────────────────────────────────────────────────────────────
-  // poly: fill only — semi-transparent inside, black outside. NO stroke (walls drawn separately)
+  // poly: semi-transparent inside, black outside, then grid drawn on top of both
   const poly = (pts) => {
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
@@ -58,6 +48,10 @@ function drawLidarMap(ctx, mapId) {
     ctx.closePath();
     ctx.fillStyle = '#000';
     ctx.fill('evenodd');
+    // 1m grid drawn after fills → visible across entire canvas (inside + outside)
+    ctx.strokeStyle = GRD; ctx.lineWidth = 0.5;
+    for (let x = 0; x <= w; x += G) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+    for (let y = 0; y <= h; y += G) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
   };
 
   // Outer wall segment (bright cyan) — skip calling for passage openings
