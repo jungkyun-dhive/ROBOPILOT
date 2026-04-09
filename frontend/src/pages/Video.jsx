@@ -1,96 +1,107 @@
-import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, MapPin, MonitorX, Image } from 'lucide-react';
-import { companyApi, siteApi, missionApi, robotApi } from '../utils/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useState } from 'react';
+import { Play, Pause, SkipBack, SkipForward, MapPin, Plus, X } from 'lucide-react';
 
-const generalItems = [
-  { id: 'construction', label: 'Construction' },
-  { id: 'hardhat', label: 'HardHat' },
-  { id: 'machinery', label: 'Machinery' },
-  { id: 'mask', label: 'Mask' },
+// Mock data - 실제 영상 파일 목록
+const mockVideoFiles = [
+  {
+    id: 1,
+    filename: '2025-11-19_SeoulFactory_안전순찰_라이트.mp4',
+    date: '2025-11-19',
+    location: 'Seoul Factory',
+    mission: '안전순찰',
+    robot: '라이트',
+    duration: 4632, // 01:27:12
+    robotStatus: {
+      status: '작업중',
+      battery: 90,
+      networkStrength: '양호',
+      gpsStrength: '양호'
+    },
+    operationInfo: {
+      altitude: '0 m',
+      speed: '0 m/s',
+      operationTime: '00:00:00',
+      startTime: '2025-11-19 16:25:17 (KST)'
+    },
+    detections: [
+      { time: 204, type: 'AI 모듈 A', color: 'blue' },
+      { time: 264, type: 'AI 모듈 A', color: 'blue' },
+      { time: 343, type: 'AI 모듈 C', color: 'orange' },
+      { time: 360, type: 'AI 모듈 C', color: 'orange' },
+      { time: 424, type: 'AI 모듈 A', color: 'blue' },
+      { time: 504, type: 'AI 모듈 D', color: 'green' },
+      { time: 534, type: 'AI 모듈 D', color: 'green' },
+      { time: 644, type: 'AI 모듈 A', color: 'blue' },
+      { time: 700, type: 'AI 모듈 D', color: 'green' }
+    ]
+  },
+  {
+    id: 2,
+    filename: '2025-11-23_SeoulFactory_안전순찰_라이트.mp4',
+    date: '2025-11-23',
+    location: 'Seoul Factory',
+    mission: '안전순찰',
+    robot: '라이트',
+    duration: 4673, // 01:17:53
+    robotStatus: {
+      status: '작업중',
+      battery: 84,
+      networkStrength: '양호',
+      gpsStrength: '약함'
+    },
+    operationInfo: {
+      altitude: '0 m',
+      speed: '0 m/s',
+      operationTime: '00:00:00',
+      startTime: '2025-11-23 16:15:05 (KST)'
+    },
+    detections: [
+      { time: 195, type: 'AI 모듈 A', color: 'blue' },
+      { time: 335, type: 'AI 모듈 C', color: 'orange' },
+      { time: 352, type: 'AI 모듈 D', color: 'green' },
+      { time: 418, type: 'AI 모듈 A', color: 'blue' },
+      { time: 524, type: 'AI 모듈 D', color: 'green' },
+      { time: 637, type: 'AI 모듈 C', color: 'orange' },
+      { time: 692, type: 'AI 모듈 D', color: 'green' }
+    ]
+  }
 ];
 
-const dangerItems = [
-  { id: 'no_hardhat', label: 'No HardHat' },
-  { id: 'no_safety_vest', label: 'No Safety Vest' },
-  { id: 'no_mask', label: 'No Mask' },
-  { id: 'fire', label: 'Fire' },
+const aiModules = [
+  { id: 'A', label: 'AI 모듈 A', color: 'blue' },
+  { id: 'B', label: 'AI 모듈 B', color: 'gray' },
+  { id: 'C', label: 'AI 모듈 C', color: 'orange' },
+  { id: 'D', label: 'AI 모듈 D', color: 'green' },
+  { id: 'E', label: 'AI 모듈 E', color: 'gray' }
 ];
-
-function Toggle({ enabled, onChange }) {
-  return (
-    <button
-      onClick={onChange}
-      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-        enabled ? 'bg-orange-400' : 'bg-gray-300'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-          enabled ? 'translate-x-4' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  );
-}
 
 function Video() {
-  const { user } = useAuth();
-  const [companies, setCompanies] = useState([]);
-  const [sites, setSites] = useState([]);
-  const [missions, setMissions] = useState([]);
-  const [robots, setRobots] = useState([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
-  const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [selectedMissionId, setSelectedMissionId] = useState('');
-  const [selectedRobotId, setSelectedRobotId] = useState('');
+  const [selectedVideos, setSelectedVideos] = useState([]);
+  const [selectedAiModules, setSelectedAiModules] = useState(['A', 'C', 'D']);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [generalEnabled, setGeneralEnabled] = useState(true);
-  const [dangerEnabled, setDangerEnabled] = useState(true);
-  const [generalToggles, setGeneralToggles] = useState(
-    Object.fromEntries(generalItems.map((i) => [i.id, true]))
-  );
-  const [dangerToggles, setDangerToggles] = useState(
-    Object.fromEntries(dangerItems.map((i) => [i.id, true]))
-  );
-  const [now, setNow] = useState(new Date());
-  const timerRef = useRef(null);
+  const [timeOffset1, setTimeOffset1] = useState(0);
+  const [timeOffset2, setTimeOffset2] = useState(0);
 
-  useEffect(() => {
-    timerRef.current = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timerRef.current);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (user && user.role !== 'SYSTEM_ADMIN' && user.companyId && !selectedCompanyId) {
-      setSelectedCompanyId(user.companyId);
-    }
-  }, [user, selectedCompanyId]);
-
-  const loadData = async () => {
-    try {
-      const [companiesData, sitesData, missionsData, robotsData] = await Promise.all([
-        companyApi.getAll(), siteApi.getAll(), missionApi.getAll(), robotApi.getAll(),
-      ]);
-      setCompanies(companiesData || []);
-      setSites(sitesData || []);
-      setMissions(missionsData || []);
-      setRobots(robotsData || []);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+  const handleVideoSelect = (videoId) => {
+    if (selectedVideos.includes(videoId)) {
+      setSelectedVideos(selectedVideos.filter(id => id !== videoId));
+    } else if (selectedVideos.length < 2) {
+      setSelectedVideos([...selectedVideos, videoId]);
     }
   };
 
-  const formatDateTime = (date) =>
-    date.toLocaleString('ko-KR', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-    });
+  const handleVideoRemove = (videoId) => {
+    setSelectedVideos(selectedVideos.filter(id => id !== videoId));
+  };
+
+  const handleAiToggle = (moduleId) => {
+    if (selectedAiModules.includes(moduleId)) {
+      setSelectedAiModules(selectedAiModules.filter(id => id !== moduleId));
+    } else {
+      setSelectedAiModules([...selectedAiModules, moduleId]);
+    }
+  };
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -99,198 +110,457 @@ function Video() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const isCompanySelectable = user?.role === 'SYSTEM_ADMIN';
-  const userCompanyId = user?.companyId;
-  const effectiveCompanyId = selectedCompanyId || userCompanyId;
+  const getSelectedVideoData = () => {
+    return selectedVideos.map(id => mockVideoFiles.find(v => v.id === id));
+  };
 
-  const availableSites = effectiveCompanyId
-    ? sites.filter((s) => s.companyId === effectiveCompanyId)
-    : [];
-  const availableRobots = selectedSiteId
-    ? robots.filter((r) => r.siteId === selectedSiteId)
-    : [];
-  const availableMissions = selectedSiteId
-    ? missions.filter((m) => m.siteId === selectedSiteId)
-    : [];
+  const selectedVideoData = getSelectedVideoData();
+  const maxDuration = Math.max(...selectedVideoData.map(v => v?.duration || 0));
 
-  const selectClass = "px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 appearance-none";
+  const renderSingleVideo = () => {
+    const video = selectedVideoData[0];
 
-  const generalCount = Object.values(generalToggles).filter(Boolean).length;
-  const dangerCount = Object.values(dangerToggles).filter(Boolean).length;
+    return (
+      <div className="flex-1 flex flex-col p-4 space-y-4">
+        {/* Video Player */}
+        <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden relative flex items-center justify-center">
+          <button className="absolute top-4 left-4 px-3 py-1.5 bg-gray-700 bg-opacity-80 text-white text-sm font-medium rounded flex items-center gap-2">
+            <Play className="h-4 w-4" />
+            PLAY
+          </button>
+          <div className="text-center">
+            <Play className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">영상을 첨부해주세요</p>
+          </div>
+        </div>
 
-  return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">영상 재생</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{formatDateTime(now)} (KST, UTC+09:00)</p>
-      </div>
+        {/* Timeline and Controls */}
+        <div className="bg-white rounded-lg p-4 space-y-3">
+          {/* Timeline with Detection Markers */}
+          <div className="relative h-12 bg-gray-100 rounded">
+            {/* Detection markers */}
+            {video?.detections.map((detection, idx) => {
+              if (!selectedAiModules.includes(detection.type.split(' ')[2])) return null;
+              const colorMap = {
+                blue: 'bg-blue-500',
+                orange: 'bg-orange-500',
+                green: 'bg-green-500'
+              };
+              return (
+                <div
+                  key={idx}
+                  className={`absolute top-0 bottom-0 w-1 ${colorMap[detection.color]}`}
+                  style={{ left: `${(detection.time / video.duration) * 100}%` }}
+                  title={`${detection.type} - ${formatTime(detection.time)}`}
+                />
+              );
+            })}
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col p-4 gap-3 min-w-0">
-          {/* Filter Bar */}
-          <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center gap-2 flex-wrap">
-            <select
-              value={selectedCompanyId || (userCompanyId || '')}
-              onChange={(e) => {
-                setSelectedCompanyId(e.target.value);
-                setSelectedSiteId('');
-                setSelectedMissionId('');
-                setSelectedRobotId('');
-              }}
-              disabled={!isCompanySelectable}
-              className={selectClass}
-            >
-              <option value="">회사 선택</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            {/* Progress indicator */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-gray-800"
+              style={{ left: `${(currentTime / maxDuration) * 100}%` }}
+            />
 
-            <select
-              value={selectedSiteId}
-              onChange={(e) => {
-                setSelectedSiteId(e.target.value);
-                setSelectedMissionId('');
-                setSelectedRobotId('');
-              }}
-              disabled={!effectiveCompanyId}
-              className={selectClass}
-            >
-              <option value="">사이트 선택</option>
-              {availableSites.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-
-            <select
-              value={selectedRobotId}
-              onChange={(e) => setSelectedRobotId(e.target.value)}
-              disabled={!selectedSiteId}
-              className={selectClass}
-            >
-              <option value="">로봇 선택</option>
-              {availableRobots.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
-
-            <select
-              value={selectedMissionId}
-              onChange={(e) => setSelectedMissionId(e.target.value)}
-              disabled={!selectedSiteId}
-              className={selectClass}
-            >
-              <option value="">미션 선택</option>
-              {availableMissions.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-
-            <select disabled className={selectClass}>
-              <option value="">영상 정보</option>
-            </select>
+            {/* Clickable timeline */}
+            <input
+              type="range"
+              min="0"
+              max={video?.duration || 0}
+              value={currentTime}
+              onChange={(e) => setCurrentTime(parseInt(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
           </div>
 
-          {/* Video Player */}
-          <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col items-center justify-center min-h-0">
-            <MonitorX className="h-14 w-14 text-gray-600 mb-3" />
-            <p className="text-gray-500 text-sm">작업 시작 이후 활성화됩니다</p>
-          </div>
-
-          {/* Playback Controls */}
-          <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-            <div className="h-1.5 bg-gray-200 rounded-full mb-3">
-              <div className="h-full bg-blue-500 rounded-full" style={{ width: '0%' }} />
-            </div>
+          {/* Controls */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button className="p-1.5 hover:bg-gray-100 rounded">
-                <SkipBack className="h-4 w-4 text-gray-600" />
+              <button className="p-2 hover:bg-gray-100 rounded">
+                <SkipBack className="h-5 w-5 text-gray-700" />
               </button>
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="p-1.5 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded"
               >
-                {isPlaying
-                  ? <Pause className="h-5 w-5 text-gray-700" />
-                  : <Play className="h-5 w-5 text-gray-700" />}
+                {isPlaying ? <Pause className="h-6 w-6 text-gray-700" /> : <Play className="h-6 w-6 text-gray-700" />}
               </button>
-              <button className="p-1.5 hover:bg-gray-100 rounded">
-                <SkipForward className="h-4 w-4 text-gray-600" />
+              <button className="p-2 hover:bg-gray-100 rounded">
+                <SkipForward className="h-5 w-5 text-gray-700" />
               </button>
-              <span className="ml-auto text-sm text-gray-600 font-medium">
-                {formatTime(currentTime)} / 00:00:00
-              </span>
+            </div>
+            <div className="text-sm text-gray-700 font-medium">
+              {formatTime(currentTime)} / {formatTime(video?.duration || 0)}
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-72 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
-          <div className="p-4 space-y-4">
-            {/* Video Info */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">영상 정보</h3>
-              <div className="bg-gray-50 rounded-lg p-4 flex flex-col items-center justify-center gap-2 min-h-20">
-                <Image className="h-8 w-8 text-gray-300" />
-                <p className="text-xs text-gray-400 text-center">전반적인 영상을 선택해 주세요</p>
+        {/* Robot Status and Operation Info */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Robot Status */}
+          <div className="bg-white rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">상태</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                  {video?.robotStatus.status || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">배터리</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                  {video?.robotStatus.battery || '-'}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">네트워크 세기</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                  {video?.robotStatus.networkStrength || '-'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">GPS 세기</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                  {video?.robotStatus.gpsStrength || '-'}
+                </span>
               </div>
             </div>
+          </div>
 
-            <div className="border-t border-gray-100" />
+          {/* Operation Info */}
+          <div className="bg-white rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">고도</span>
+                <span className="text-sm text-gray-900">{video?.operationInfo.altitude || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">속도</span>
+                <span className="text-sm text-gray-900">{video?.operationInfo.speed || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">운행 시간</span>
+                <span className="text-sm text-gray-900">{video?.operationInfo.operationTime || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">시작 시간</span>
+                <span className="text-sm text-gray-900">{video?.operationInfo.startTime || '-'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
-            {/* AI Model */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">AI 모델</h3>
+  const renderComparisonVideos = () => {
+    const video1 = selectedVideoData[0];
+    const video2 = selectedVideoData[1];
+    const offsets = [timeOffset1, timeOffset2];
+    const setOffsets = [setTimeOffset1, setTimeOffset2];
 
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Toggle enabled={generalEnabled} onChange={() => setGeneralEnabled(!generalEnabled)} />
-                  <span className="text-xs font-medium text-gray-700">일반 감지</span>
-                  <span className="text-xs text-gray-400">({generalCount}/{generalItems.length})</span>
+    return (
+      <div className="flex-1 flex flex-col p-4 space-y-4">
+        {/* Two Video Players with Time Offset Controls */}
+        <div className="flex-1 flex gap-4">
+          {[video1, video2].map((video, index) => (
+            <div key={index} className="flex-1 flex flex-col gap-2">
+              {/* Video Player */}
+              <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden relative flex items-center justify-center">
+                <button className="absolute top-4 left-4 px-3 py-1.5 bg-gray-700 bg-opacity-80 text-white text-sm font-medium rounded flex items-center gap-2">
+                  <Play className="h-4 w-4" />
+                  PLAY
+                </button>
+                <div className="text-center">
+                  <Play className="h-12 w-12 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">영상 {index + 1}</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Toggle enabled={dangerEnabled} onChange={() => setDangerEnabled(!dangerEnabled)} />
-                  <span className="text-xs font-medium text-gray-700">위험 감지</span>
-                  <span className="text-xs text-gray-400">({dangerCount}/{dangerItems.length})</span>
+                <div className="absolute bottom-2 left-0 right-0 text-center">
+                  <span className="text-white text-xs">{formatTime(0)} / {formatTime(video?.duration || 0)}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-                {generalItems.map((item, idx) => (
-                  <div key={item.id} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded font-medium leading-none">YOLO</span>
-                      <span className="text-xs text-gray-700 flex-1 truncate">{item.label}</span>
-                      <Toggle
-                        enabled={generalToggles[item.id]}
-                        onChange={() => setGeneralToggles((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-                      />
-                    </div>
-                    {dangerItems[idx] && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded font-medium leading-none">YOLO</span>
-                        <span className="text-xs text-gray-700 flex-1 truncate">{dangerItems[idx].label}</span>
-                        <Toggle
-                          enabled={dangerToggles[dangerItems[idx].id]}
-                          onChange={() => setDangerToggles((prev) => ({ ...prev, [dangerItems[idx].id]: !prev[dangerItems[idx].id] }))}
-                        />
-                      </div>
-                    )}
+              {/* Time Offset Control */}
+              <div className="bg-white rounded-lg p-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">시간 조정</span>
+                  <div className="flex-1 relative">
+                    {/* Center marker */}
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 -translate-x-1/2 pointer-events-none z-10" />
+                    <input
+                      type="range"
+                      min="-30"
+                      max="30"
+                      value={offsets[index]}
+                      onChange={(e) => setOffsets[index](parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                      style={{
+                        background: (() => {
+                          const percentage = ((offsets[index] + 30) / 60) * 100;
+                          if (offsets[index] < 0) {
+                            // 음수: 현재 위치에서 중앙(50%)까지 파란색
+                            return `linear-gradient(to right, #e5e7eb 0%, #e5e7eb ${percentage}%, #3b82f6 ${percentage}%, #3b82f6 50%, #e5e7eb 50%, #e5e7eb 100%)`;
+                          } else if (offsets[index] > 0) {
+                            // 양수: 중앙(50%)에서 현재 위치까지 파란색
+                            return `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 50%, #3b82f6 50%, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%, #e5e7eb 100%)`;
+                          } else {
+                            // 0: 색상 없음
+                            return '#e5e7eb';
+                          }
+                        })()
+                      }}
+                    />
                   </div>
-                ))}
+                  <span className="text-xs font-medium text-gray-900 w-12 text-right">
+                    {offsets[index] > 0 ? '+' : ''}{offsets[index]}초
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Timeline and Controls */}
+        <div className="bg-white rounded-lg p-4 space-y-3">
+          {/* Timeline */}
+          <div className="relative h-12 bg-gray-100 rounded">
+            {/* Detection markers for both videos */}
+            {selectedVideoData.map((video, vIdx) =>
+              video?.detections.map((detection, dIdx) => {
+                if (!selectedAiModules.includes(detection.type.split(' ')[2])) return null;
+                const colorMap = {
+                  blue: vIdx === 0 ? 'bg-blue-500' : 'bg-blue-400',
+                  orange: vIdx === 0 ? 'bg-orange-500' : 'bg-orange-400',
+                  green: vIdx === 0 ? 'bg-green-500' : 'bg-green-400'
+                };
+                return (
+                  <div
+                    key={`${vIdx}-${dIdx}`}
+                    className={`absolute ${vIdx === 0 ? 'top-0 h-1/2' : 'bottom-0 h-1/2'} w-1 ${colorMap[detection.color]}`}
+                    style={{ left: `${(detection.time / maxDuration) * 100}%` }}
+                    title={`영상${vIdx + 1} - ${detection.type} - ${formatTime(detection.time)}`}
+                  />
+                );
+              })
+            )}
+
+            {/* Progress indicator */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-gray-800"
+              style={{ left: `${(currentTime / maxDuration) * 100}%` }}
+            />
+
+            {/* Clickable timeline */}
+            <input
+              type="range"
+              min="0"
+              max={maxDuration}
+              value={currentTime}
+              onChange={(e) => setCurrentTime(parseInt(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-100 rounded">
+                <SkipBack className="h-5 w-5 text-gray-700" />
+              </button>
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                {isPlaying ? <Pause className="h-6 w-6 text-gray-700" /> : <Play className="h-6 w-6 text-gray-700" />}
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded">
+                <SkipForward className="h-5 w-5 text-gray-700" />
+              </button>
+            </div>
+            <div className="text-sm text-gray-700 font-medium">
+              {formatTime(currentTime)} / {formatTime(maxDuration)}
+            </div>
+          </div>
+        </div>
+
+        {/* Robot Status and Operation Info for both videos */}
+        <div className="grid grid-cols-4 gap-4">
+          {selectedVideoData.map((video, index) => (
+            <>
+              {/* Robot Status */}
+              <div key={`status-${index}`} className="bg-white rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">상태</span>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                      {video?.robotStatus.status || '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">배터리</span>
+                    <span className={`px-2 py-0.5 ${index === 0 ? 'bg-green-100 text-green-700' : 'bg-green-100 text-green-700'} text-xs font-medium rounded`}>
+                      {video?.robotStatus.battery || '-'}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">네트워크 세기</span>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                      {video?.robotStatus.networkStrength || '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">GPS 세기</span>
+                    <span className={`px-2 py-0.5 ${index === 1 && video?.robotStatus.gpsStrength === '약함' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'} text-xs font-medium rounded`}>
+                      {video?.robotStatus.gpsStrength || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operation Info */}
+              <div key={`info-${index}`} className="bg-white rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">고도</span>
+                    <span className="text-sm text-gray-900">{video?.operationInfo.altitude || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">속도</span>
+                    <span className="text-sm text-gray-900">{video?.operationInfo.speed || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">운행 시간</span>
+                    <span className="text-sm text-gray-900">{video?.operationInfo.operationTime || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">시작 시간</span>
+                    <span className="text-sm text-gray-900">{video?.operationInfo.startTime || '-'}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-100">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <h1 className="text-xl font-bold text-gray-900">영상 재생</h1>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Content */}
+        {selectedVideos.length === 0 && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Play className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">영상을 선택하세요</p>
+            </div>
+          </div>
+        )}
+
+        {selectedVideos.length === 1 && renderSingleVideo()}
+        {selectedVideos.length === 2 && renderComparisonVideos()}
+
+        {/* Right Sidebar */}
+        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
+          <div className="p-4 space-y-6">
+            {/* Video Attachment Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">영상 첨부</h3>
+              <div className="space-y-2">
+                {selectedVideos.map(videoId => {
+                  const video = mockVideoFiles.find(v => v.id === videoId);
+                  return (
+                    <div key={videoId} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{video?.filename}</p>
+                      </div>
+                      <button
+                        onClick={() => handleVideoRemove(videoId)}
+                        className="p-1 hover:bg-gray-200 rounded"
+                      >
+                        <X className="h-4 w-4 text-gray-600" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {selectedVideos.length < 2 && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <button className="w-full flex flex-col items-center gap-2 text-gray-500 hover:text-gray-700">
+                      <Plus className="h-6 w-6" />
+                      <span className="text-sm">
+                        {selectedVideos.length === 0 ? '파일 영상 첨부하기' : '파일을 첨부할 경우 2개'}
+                      </span>
+                    </button>
+
+                    {/* Available videos list */}
+                    <div className="mt-3 space-y-1 max-h-32 overflow-y-auto">
+                      {mockVideoFiles
+                        .filter(v => !selectedVideos.includes(v.id))
+                        .map(video => (
+                          <button
+                            key={video.id}
+                            onClick={() => handleVideoSelect(video.id)}
+                            className="w-full text-left px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                          >
+                            {video.filename}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="border-t border-gray-100" />
+            {/* AI Modules */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 모듈</h3>
+              <div className="space-y-2">
+                {aiModules.map((module) => {
+                  const colorIndicatorMap = {
+                    blue: 'bg-blue-500',
+                    orange: 'bg-orange-500',
+                    green: 'bg-green-500',
+                    gray: 'bg-gray-300'
+                  };
+
+                  return (
+                    <label
+                      key={module.id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAiModules.includes(module.id)}
+                        onChange={() => handleAiToggle(module.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">{module.label}</span>
+                      <div className={`ml-auto w-8 h-1 rounded ${colorIndicatorMap[module.color]}`} />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Map */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">이동 경로 지도</h3>
-              <div className="bg-gray-100 rounded-lg h-48 flex flex-col items-center justify-center gap-2 border border-gray-200">
-                <MapPin className="h-8 w-8 text-gray-400" />
-                <p className="text-xs text-gray-400 text-center">영상 첨부 이후 활성화됩니다</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">이동 경로 지도</h3>
+              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center border border-gray-300">
+                <div className="text-center">
+                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">영상 첨부 이후 활성화됩니다</p>
+                </div>
               </div>
             </div>
           </div>
