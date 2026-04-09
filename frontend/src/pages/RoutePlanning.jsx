@@ -15,154 +15,176 @@ const MOCK_MAPS = [
 const MAP_W = 760;
 const MAP_H = 520;
 
-// ─── Procedural floor-plan drawing per map ───────────────────────────────────
+// ─── LiDAR map rendering — Vector Space style ────────────────────────────────
 function drawLidarMap(ctx, mapId) {
   const w = MAP_W;
   const h = MAP_H;
+  const G = 20; // 1 m = 20 px  (0.05 m/px)
 
-  ctx.fillStyle = '#d6d6d6';
+  // Color theme
+  const BG  = '#071e2a';   // canvas background
+  const GRD = '#1a6070';   // 1 m grid lines
+  const FLR = '#0d2535';   // navigable floor fill
+  const WO  = '#3de8ff';   // outer boundary (bright cyan)
+  const WI  = '#00c8dc';   // inner walls
+  const OBS = '#020c14';   // obstacles / equipment
+
+  // ── Background ──────────────────────────────────────────────────────────────
+  ctx.fillStyle = BG;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.fillStyle = '#c8c8c8';
-  for (let x = 0; x < w; x += 8) {
-    for (let y = 0; y < h; y += 8) {
-      ctx.fillRect(x, y, 1, 1);
-    }
+  // ── 1 m grid ────────────────────────────────────────────────────────────────
+  ctx.strokeStyle = GRD;
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= w; x += G) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y <= h; y += G) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
   }
 
-  const wall = (x, y, bw, bh) => {
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(x, y, bw, bh);
-  };
-  const gap = (x, y, gw, gh) => {
-    ctx.fillStyle = '#d6d6d6';
-    ctx.fillRect(x, y, gw, gh);
+  // ── Draw helpers ─────────────────────────────────────────────────────────────
+  // Floor polygon with bright outer boundary
+  const poly = (pts) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = FLR; ctx.fill();
+    ctx.strokeStyle = WO; ctx.lineWidth = 2.5; ctx.stroke();
   };
 
+  // Inner wall line
+  const iw = (x1, y1, x2, y2, lw = 1.5) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = WI; ctx.lineWidth = lw; ctx.stroke();
+  };
+
+  // Obstacle: dark fill + faint cyan border
+  const ob = (x, y, ow, oh) => {
+    ctx.fillStyle = OBS; ctx.fillRect(x, y, ow, oh);
+    ctx.strokeStyle = WI; ctx.lineWidth = 0.5; ctx.strokeRect(x, y, ow, oh);
+  };
+
+  // Door gap: paint floor color to "cut" a wall
+  const door = (x, y, dw, dh) => {
+    ctx.fillStyle = FLR; ctx.fillRect(x, y, dw, dh);
+  };
+
+  // ── Per-map floor plans ──────────────────────────────────────────────────────
   if (mapId === 1) {
-    wall(40, 40, 680, 10);   wall(40, 470, 680, 10);
-    wall(40, 40, 10, 440);   wall(710, 40, 10, 440);
-    wall(180, 40, 8, 180);   wall(380, 40, 8, 180);
-    wall(180, 220, 210, 8);
-    wall(180, 300, 8, 180);  wall(380, 300, 8, 180);
-    wall(180, 290, 210, 8);
-    wall(550, 40, 8, 200);   wall(550, 290, 8, 190);
-    wall(550, 240, 170, 8);
-    gap(220, 40, 60, 10); gap(420, 40, 60, 10);
-    gap(180, 340, 8, 55);    gap(380, 330, 8, 55);
-    gap(550, 150, 8, 55);    gap(550, 380, 8, 55);
-    ctx.fillStyle = '#b0b0b0';
-    [[80,80,60,30],[80,200,60,80],[210,60,100,40],[420,60,80,40],[610,60,80,40]].forEach(
-      ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
-    );
+    // FPT 하노이 사무소 1층 — L-shaped office block
+    poly([
+      [30, 30], [490, 30], [490, 180],
+      [730, 180],[730, 490],[30, 490],
+    ]);
+    iw(250, 30, 250, 490);          // main vertical corridor
+    iw(490, 180, 490, 490);         // right-wing divider
+    iw(30, 290, 730, 290);          // horizontal corridor
+    iw(250, 180, 490, 180);         // cross-wall (top of right wing)
+    iw(100, 30, 100, 290);          // left sub-corridor
+    door(248, 120, 5, 50); door(248, 340, 5, 50);
+    door(370, 178, 80, 5); door(488, 360, 5, 55);
+    ob(50,  50,  30, 120); ob(130, 55, 90, 45);
+    ob(130, 120, 90, 45);  ob(540, 210, 65, 50);
+    ob(625, 210, 70, 50);  ob(50,  330, 60, 100);
+    ob(310, 330, 100, 60);
+
   } else if (mapId === 2) {
-    wall(30, 30, 700, 12);   wall(30, 478, 700, 12);
-    wall(30, 30, 12, 460);   wall(718, 30, 12, 460);
-    wall(200, 30, 12, 220);  wall(200, 310, 12, 180);
-    wall(480, 30, 12, 160);  wall(480, 260, 12, 230);
-    wall(200, 248, 292, 12);
-    gap(200, 110, 12, 60); gap(200, 360, 12, 60);
-    gap(480, 190, 12, 60);   gap(310, 30, 80, 12);
-    ctx.fillStyle = '#888';
-    [[60,60,50,50],[60,220,50,80],[250,60,80,60],[540,60,80,60],[250,310,80,80]].forEach(
-      ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
-    );
+    // 현대건설 힐스테이트 A구역 — irregular octagonal plan
+    poly([
+      [60, 80],  [200, 30], [560, 30],
+      [720, 100],[720, 430],[540, 490],
+      [180, 490],[40,  420],[40,  160],
+    ]);
+    iw(380, 30, 380, 490);
+    iw(40, 270, 720, 270);
+    iw(200, 30, 200, 490);
+    iw(540, 30, 540, 490);
+    door(198, 140, 5, 55); door(198, 330, 5, 55);
+    door(538, 140, 5, 55); door(538, 330, 5, 55);
+    door(280, 268, 70, 5); door(440, 268, 70, 5);
+    ob(65,  110, 100, 110); ob(65,  300, 100, 110);
+    ob(420, 60,  90,  65);  ob(580, 130, 95,  90);
+    ob(250, 155, 95,  80);  ob(580, 305, 95,  130);
+
   } else if (mapId === 3) {
-    wall(50, 50, 660, 12);   wall(50, 458, 660, 12);
-    wall(50, 50, 12, 420);   wall(698, 50, 12, 420);
-    wall(280, 50, 12, 280);  wall(280, 390, 12, 80);
-    wall(50, 270, 242, 12);  wall(280, 380, 420, 12);
-    wall(500, 50, 12, 130);  wall(500, 230, 12, 160);
-    gap(280, 150, 12, 60); gap(280, 430, 12, 40);
-    gap(500, 160, 12, 60); gap(150, 270, 60, 12);
-    gap(400, 380, 12, 60);
-    ctx.fillStyle = '#888';
-    [[80,80,60,70],[80,320,60,80],[320,80,60,70],[540,260,80,60]].forEach(
-      ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
-    );
+    // 현대건설 힐스테이트 B구역 — reverse-L plan
+    poly([
+      [30, 30], [730, 30], [730, 310],
+      [430, 310],[430, 490],[30, 490],
+    ]);
+    iw(30, 200, 730, 200);
+    iw(240, 30, 240, 490);
+    iw(430, 200, 430, 490);
+    iw(600, 30, 600, 200);
+    door(238, 100, 5, 55); door(238, 330, 5, 55);
+    door(428, 290, 5, 55); door(100, 198, 80, 5);
+    ob(50,  50,  145, 100); ob(280, 50,  90, 100);
+    ob(640, 55,  60,  100); ob(50,  235, 145, 130);
+    ob(465, 340, 90,  110);
+
   } else if (mapId === 4) {
-    wall(20, 20, 720, 12);   wall(20, 488, 720, 12);
-    wall(20, 20, 12, 480);   wall(728, 20, 12, 480);
-    wall(20, 240, 720, 10);
-    for (let i = 0; i < 5; i++) {
-      wall(80 + i * 120, 60, 70, 140);
-      gap(80 + i * 120 + 10, 60, 50, 12);
+    // SKT 대전 데이터센터 — rectangular with server-rack rows
+    poly([[20, 20],[740, 20],[740, 500],[20, 500]]);
+    iw(20, 260, 740, 260, 2);           // center aisle
+    [160, 300, 440, 580].forEach(x => iw(x, 20, x, 500));   // column separators
+    for (let c = 0; c < 5; c++) {
+      const bx = 22 + c * 140;
+      [40, 90, 140, 192].forEach(ry => ob(bx + 8, ry,  112, 32)); // top racks
+      [272, 322, 372, 422].forEach(ry => ob(bx + 8, ry, 112, 32)); // bottom racks
     }
-    for (let i = 0; i < 5; i++) {
-      wall(80 + i * 120, 300, 70, 140);
-      gap(80 + i * 120 + 10, 430, 50, 12);
-    }
-    gap(340, 240, 80, 10); gap(340, 20, 80, 12);
   }
 
-  ctx.fillStyle = '#2563eb';
-  ctx.beginPath();
-  ctx.arc(80, 430, 10, 0, Math.PI * 2);
-  ctx.fill();
+  // ── Origin S marker ──────────────────────────────────────────────────────────
+  ctx.fillStyle = WI;
+  ctx.beginPath(); ctx.arc(65, 455, 11, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 11px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('S', 80, 430);
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('S', 65, 455);
 
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(w - 120, h - 25); ctx.lineTo(w - 20, h - 25); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(w - 120, h - 30); ctx.lineTo(w - 120, h - 20); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(w - 20, h - 30);  ctx.lineTo(w - 20, h - 20);  ctx.stroke();
-  ctx.fillStyle = '#555';
-  ctx.font = '11px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('5 m', w - 70, h - 12);
+  // ── Scale bar (5 m = 100 px) ─────────────────────────────────────────────────
+  const sx = w - 130, sy = h - 26;
+  ctx.strokeStyle = '#7fd8e8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 100, sy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx, sy + 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx + 100, sy - 6); ctx.lineTo(sx + 100, sy + 6); ctx.stroke();
+  ctx.fillStyle = '#7fd8e8';
+  ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('5 m', sx + 50, sy + 14);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const WP_R = 13;      // waypoint circle radius
-const HANDLE_DIST = WP_R + 22; // rotation handle distance from center
+const WP_R = 13;
+const HANDLE_DIST = WP_R + 22;
 
-// Calculate heading (degrees, 0=north/up, clockwise) from point A to B
 function calcHeading(x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
-  // atan2(dy, dx) → angle from east, clockwise in SVG coords
-  // +90 → 0 = north
   const deg = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
   return Math.round(deg);
 }
 
-// Path line midpoint arrow points
-function getPathArrowPoints(x1, y1, x2, y2) {
-  const dx = x2 - x1; const dy = y2 - y1;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux = dx / len; const uy = dy / len;
-  const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
-  const size = 7;
-  const px = -uy * (size / 2); const py = ux * (size / 2);
-  return `${mx + ux * size},${my + uy * size} ${mx - ux * size / 2 + px},${my - uy * size / 2 + py} ${mx - ux * size / 2 - px},${my - uy * size / 2 - py}`;
-}
-
-// Convert heading degrees to rotation handle position (in waypoint-local coords)
 function handlePos(heading) {
-  const rad = (heading - 90) * Math.PI / 180; // 0°=north → -π/2 rad from east
+  const rad = (heading - 90) * Math.PI / 180;
   return {
     x: Math.cos(rad) * HANDLE_DIST,
     y: Math.sin(rad) * HANDLE_DIST,
   };
 }
 
+// Waypoint colors
+const WP_COLOR_FIRST = '#00d07a';   // first waypoint (teal-green)
+const WP_COLOR       = '#00bcd4';   // other waypoints (cyan)
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 function RoutePlanning() {
   const [selectedMapId, setSelectedMapId] = useState(null);
   const [waypoints, setWaypoints] = useState([]);
-  // tool: 'add' | 'move'
   const [tool, setTool] = useState('add');
   const [selectedWpId, setSelectedWpId] = useState(null);
-  // dragging: { id, offX, offY }
   const [dragging, setDragging] = useState(null);
-  // rotating: waypoint id being rotated
   const [rotating, setRotating] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
@@ -170,14 +192,12 @@ function RoutePlanning() {
   const svgRef = useRef(null);
   const nextId = useRef(1);
 
-  // Draw map on canvas when selection changes
   useEffect(() => {
     if (!canvasRef.current || !selectedMapId) return;
     const ctx = canvasRef.current.getContext('2d');
     drawLidarMap(ctx, selectedMapId);
   }, [selectedMapId]);
 
-  // ── SVG mouse coordinate helper ──────────────────────────
   const svgCoords = useCallback((e) => {
     const rect = svgRef.current.getBoundingClientRect();
     return {
@@ -186,13 +206,10 @@ function RoutePlanning() {
     };
   }, [zoom]);
 
-  // ── Add waypoint (click on canvas background) ────────────
   const handleSvgClick = useCallback((e) => {
-    // Only fires when clicking the SVG background, not on waypoints
     if (e.target !== svgRef.current && e.target.dataset.bg !== 'true') return;
     if (tool === 'move') { setSelectedWpId(null); return; }
     if (tool !== 'add') return;
-
     const { x, y } = svgCoords(e);
     setWaypoints((prev) => {
       const prev_wp = prev[prev.length - 1];
@@ -201,35 +218,28 @@ function RoutePlanning() {
     });
   }, [tool, svgCoords]);
 
-  // ── Select waypoint (click on circle) ───────────────────
   const handleWpClick = useCallback((e, id) => {
     e.stopPropagation();
     setSelectedWpId((prev) => prev === id ? null : id);
   }, []);
 
-  // ── Start drag (move mode) ───────────────────────────────
   const handleWpMouseDown = useCallback((e, id) => {
     if (tool !== 'move') return;
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); e.preventDefault();
     setSelectedWpId(id);
     const { x, y } = svgCoords(e);
     const wp = waypoints.find((w) => w.id === id);
     setDragging({ id, offX: x - wp.x, offY: y - wp.y });
   }, [tool, waypoints, svgCoords]);
 
-  // ── Start rotate (drag the heading handle) ───────────────
   const handleRotateMouseDown = useCallback((e, id) => {
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); e.preventDefault();
     setRotating(id);
   }, []);
 
-  // ── Mouse move (drag or rotate) ──────────────────────────
   const handleMouseMove = useCallback((e) => {
     if (!dragging && !rotating) return;
     const { x, y } = svgCoords(e);
-
     if (dragging) {
       setWaypoints((prev) =>
         prev.map((w) =>
@@ -242,7 +252,6 @@ function RoutePlanning() {
         )
       );
     }
-
     if (rotating) {
       const wp = waypoints.find((w) => w.id === rotating);
       if (!wp) return;
@@ -260,7 +269,6 @@ function RoutePlanning() {
     setRotating(null);
   }, []);
 
-  // ── Delete waypoint ──────────────────────────────────────
   const deleteWaypoint = (id) => {
     setWaypoints((prev) => prev.filter((w) => w.id !== id));
     if (selectedWpId === id) setSelectedWpId(null);
@@ -270,7 +278,6 @@ function RoutePlanning() {
     setWaypoints([]); setSelectedWpId(null); nextId.current = 1;
   };
 
-  // ── Save JSON ─────────────────────────────────────────────
   const saveRoute = () => {
     const map = MOCK_MAPS.find((m) => m.id === selectedMapId);
     const data = {
@@ -315,7 +322,7 @@ function RoutePlanning() {
       <div className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-            <Map className="h-4 w-4 text-blue-500" />LiDAR 맵 목록
+            <Map className="h-4 w-4 text-cyan-500" />LiDAR 맵 목록
           </h2>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -335,7 +342,7 @@ function RoutePlanning() {
                   key={m.id}
                   onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); }}
                   className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                    selectedMapId === m.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                    selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
@@ -356,6 +363,7 @@ function RoutePlanning() {
 
       {/* ── Center: canvas + toolbar ─────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-800 mr-1">
@@ -368,7 +376,7 @@ function RoutePlanning() {
               onClick={() => setTool('add')}
               title="웨이포인트 추가"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tool === 'add' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                tool === 'add' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Plus className="h-3.5 w-3.5" />추가
@@ -377,7 +385,7 @@ function RoutePlanning() {
               onClick={() => setTool('move')}
               title="위치 이동 / 방향 회전"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tool === 'move' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                tool === 'move' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Move className="h-3.5 w-3.5" />이동
@@ -395,10 +403,13 @@ function RoutePlanning() {
           {/* Legend */}
           <div className="flex items-center gap-3 ml-2 text-xs text-gray-400 border-l pl-3">
             <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />출발점
+              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR_FIRST }} />출발점
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />웨이포인트
+              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR }} />웨이포인트
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-0.5 inline-block bg-white border border-gray-300" />경로
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />방향 핸들
@@ -411,14 +422,14 @@ function RoutePlanning() {
               <RotateCcw className="h-3.5 w-3.5" />전체 초기화
             </button>
             <button onClick={saveRoute} disabled={!selectedMapId || waypoints.length < 2}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
               <Download className="h-3.5 w-3.5" />경로 저장
             </button>
           </div>
         </div>
 
         {/* Canvas area */}
-        <div className="flex-1 overflow-auto p-4">
+        <div className={`flex-1 overflow-auto p-3 transition-colors ${selectedMapId ? 'bg-slate-900' : 'bg-gray-100'}`}>
           {!selectedMapId ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
               <Map className="h-16 w-16 text-gray-300" />
@@ -428,15 +439,23 @@ function RoutePlanning() {
             <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left',
                           position: 'relative', width: MAP_W, height: MAP_H, flexShrink: 0 }}>
               {/* Map canvas */}
-              <canvas ref={canvasRef} width={MAP_W} height={MAP_H}
-                style={{ display: 'block', borderRadius: 8 }} />
+              <canvas
+                ref={canvasRef}
+                width={MAP_W}
+                height={MAP_H}
+                style={{
+                  display: 'block',
+                  borderRadius: 6,
+                  boxShadow: '0 0 0 1px rgba(0,200,220,0.25), 0 6px 32px rgba(0,0,0,0.6)',
+                }}
+              />
 
               {/* Waypoint SVG overlay */}
               <svg
                 ref={svgRef}
                 width={MAP_W} height={MAP_H}
                 className="absolute inset-0"
-                style={{ cursor: tool === 'add' ? 'crosshair' : 'default', borderRadius: 8 }}
+                style={{ cursor: tool === 'add' ? 'crosshair' : 'default', borderRadius: 6 }}
                 onClick={handleSvgClick}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -445,23 +464,26 @@ function RoutePlanning() {
                 {/* Transparent background catch */}
                 <rect width={MAP_W} height={MAP_H} fill="transparent" data-bg="true" />
 
-                {/* Path lines */}
+                {/* Path lines — white solid */}
                 {waypoints.map((wp, i) => {
                   if (i === 0) return null;
                   const prev = waypoints[i - 1];
                   return (
-                    <g key={`line-${wp.id}`} style={{ pointerEvents: 'none' }}>
-                      <line x1={prev.x} y1={prev.y} x2={wp.x} y2={wp.y}
-                        stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3" />
-                      <polygon points={getPathArrowPoints(prev.x, prev.y, wp.x, wp.y)} fill="#3b82f6" />
-                    </g>
+                    <line
+                      key={`line-${wp.id}`}
+                      x1={prev.x} y1={prev.y} x2={wp.x} y2={wp.y}
+                      stroke="rgba(255,255,255,0.9)"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
                   );
                 })}
 
                 {/* Waypoints */}
                 {waypoints.map((wp, i) => {
                   const isSelected = selectedWpId === wp.id;
-                  const color = i === 0 ? '#16a34a' : '#3b82f6';
+                  const color = i === 0 ? WP_COLOR_FIRST : WP_COLOR;
                   const hPos = handlePos(wp.heading);
 
                   return (
@@ -470,15 +492,15 @@ function RoutePlanning() {
                       {/* Selection ring */}
                       {isSelected && (
                         <circle r={WP_R + 7}
-                          fill="rgba(59,130,246,0.15)"
-                          stroke="rgba(59,130,246,0.5)"
+                          fill="rgba(0,200,220,0.15)"
+                          stroke="rgba(0,220,240,0.55)"
                           strokeWidth={1.5}
                           strokeDasharray="4 2"
                           style={{ pointerEvents: 'none' }}
                         />
                       )}
 
-                      {/* Rotation handle line (shown when selected) */}
+                      {/* Rotation handle line */}
                       {isSelected && (
                         <line x1={0} y1={0} x2={hPos.x} y2={hPos.y}
                           stroke="rgba(251,146,60,0.6)" strokeWidth={1.5} strokeDasharray="3 2"
@@ -488,20 +510,18 @@ function RoutePlanning() {
 
                       {/* Direction arrow group (rotates with heading) */}
                       <g transform={`rotate(${wp.heading})`} style={{ pointerEvents: 'none' }}>
-                        {/* Stem line from circle edge upward */}
                         <line x1={0} y1={-WP_R} x2={0} y2={-WP_R - 8}
-                          stroke="rgba(255,255,255,0.85)" strokeWidth={2.5} strokeLinecap="round" />
-                        {/* Arrowhead triangle */}
+                          stroke="rgba(255,255,255,0.9)" strokeWidth={2.5} strokeLinecap="round" />
                         <polygon points={`0,${-WP_R - 16} -5,${-WP_R - 7} 5,${-WP_R - 7}`}
                           fill="rgba(255,255,255,0.95)" />
                       </g>
 
-                      {/* Circle body (clickable / draggable) */}
+                      {/* Circle body */}
                       <circle
                         r={WP_R}
                         fill={color}
-                        stroke="#fff"
-                        strokeWidth={2.5}
+                        stroke="rgba(255,255,255,0.9)"
+                        strokeWidth={2}
                         style={{ cursor: tool === 'move' ? 'grab' : 'pointer' }}
                         onMouseDown={(e) => {
                           if (tool === 'move') handleWpMouseDown(e, wp.id);
@@ -519,7 +539,7 @@ function RoutePlanning() {
                         {i + 1}
                       </text>
 
-                      {/* Rotation handle dot (shown when selected) */}
+                      {/* Rotation handle dot */}
                       {isSelected && (
                         <circle
                           cx={hPos.x} cy={hPos.y}
@@ -539,7 +559,7 @@ function RoutePlanning() {
                           y={hPos.y}
                           textAnchor={hPos.x >= 0 ? 'start' : 'end'}
                           dominantBaseline="central"
-                          fill="#f97316"
+                          fill="#fb923c"
                           fontSize={10}
                           fontWeight="bold"
                           style={{ pointerEvents: 'none', userSelect: 'none' }}
@@ -557,17 +577,17 @@ function RoutePlanning() {
 
         {/* Status bar */}
         {selectedMapId && (
-          <div className="bg-white border-t border-gray-200 px-4 py-2 flex items-center gap-4 text-xs text-gray-500">
-            <span>웨이포인트: <strong className="text-gray-800">{waypoints.length}</strong></span>
-            <span>총 경로: <strong className="text-gray-800">{getTotalDistance()} m</strong></span>
+          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 flex items-center gap-4 text-xs text-slate-400">
+            <span>웨이포인트: <strong className="text-slate-200">{waypoints.length}</strong></span>
+            <span>총 경로: <strong className="text-slate-200">{getTotalDistance()} m</strong></span>
             {selectedWp && (
-              <span className="text-blue-600 font-medium">
-                WP-{String(selectedWpIndex + 1).padStart(2, '0')} 선택됨 — 방향 {selectedWp.heading}° | 주황 핸들을 드래그하여 방향 변경
+              <span className="text-orange-400 font-medium">
+                WP-{String(selectedWpIndex + 1).padStart(2, '0')} 선택됨 — 방향 {selectedWp.heading}° | 주황 핸들 드래그: 방향 변경
               </span>
             )}
             {!selectedWp && (
-              <span className="text-gray-400 ml-auto">
-                {tool === 'add' ? '클릭: 웨이포인트 추가 / 기존 WP 클릭: 선택' : '드래그: 위치 이동 | WP 클릭 후 주황 핸들 드래그: 방향 회전'}
+              <span className="text-slate-500 ml-auto">
+                {tool === 'add' ? '클릭: 웨이포인트 추가' : '드래그: 위치 이동 | WP 선택 후 주황 핸들: 방향 회전'}
               </span>
             )}
           </div>
@@ -594,13 +614,14 @@ function RoutePlanning() {
                   onClick={() => setSelectedWpId(wp.id === selectedWpId ? null : wp.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     selectedWpId === wp.id
-                      ? 'bg-blue-50 border border-blue-200'
+                      ? 'bg-cyan-50 border border-cyan-200'
                       : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
-                    i === 0 ? 'bg-green-500' : 'bg-blue-500'
-                  }`}>
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ backgroundColor: i === 0 ? WP_COLOR_FIRST : WP_COLOR }}
+                  >
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -609,12 +630,13 @@ function RoutePlanning() {
                       {(wp.x * 0.05).toFixed(1)}m, {(wp.y * 0.05).toFixed(1)}m
                     </div>
                   </div>
-                  {/* Heading indicator */}
+                  {/* Heading compass indicator */}
                   <div className="flex flex-col items-center gap-0.5">
                     <svg width={18} height={18} viewBox="-10 -10 20 20">
                       <circle r={8} fill="none" stroke="#e5e7eb" strokeWidth={1.5} />
                       <g transform={`rotate(${wp.heading})`}>
-                        <polygon points="0,-7 -3,-1 3,-1" fill={i === 0 ? '#16a34a' : '#3b82f6'} />
+                        <polygon points="0,-7 -3,-1 3,-1"
+                          fill={i === 0 ? WP_COLOR_FIRST : WP_COLOR} />
                       </g>
                     </svg>
                     <span className="text-xs text-orange-500 font-medium leading-none">{wp.heading}°</span>
