@@ -14,13 +14,15 @@ import {
   History,
   ChevronDown,
   ChevronRight,
-  Cog
+  Cog,
+  Route
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ROLE_LABELS } from '../utils/mockUsers';
 
 const mainMenuItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: '홈피드', minRole: 'OPERATOR' },
+  { path: '/route-planning', icon: Route, label: '경로 계획', minRole: 'OPERATOR' },
   { path: '/tasks', icon: ClipboardList, label: '작업', minRole: 'OPERATOR' },
   { path: '/video', icon: Video, label: '영상 재생', minRole: 'OPERATOR' },
   { path: '/history', icon: History, label: '히스토리', minRole: 'OPERATOR' },
