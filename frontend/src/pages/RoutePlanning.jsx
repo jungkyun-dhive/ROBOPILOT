@@ -42,19 +42,15 @@ function drawLidarMap(ctx, mapId) {
   }
 
   // ── Draw helpers ─────────────────────────────────────────────────────────────
-  // poly: semi-transparent fill inside, solid black outside (even-odd), bright border
+  // poly: fill only — semi-transparent inside, black outside. NO stroke (walls drawn separately)
   const poly = (pts) => {
-    const path = () => {
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-      ctx.closePath();
-    };
-    // 1) Semi-transparent teal fill → grid shows through inside
-    path();
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
     ctx.fillStyle = 'rgba(10, 40, 55, 0.52)';
     ctx.fill();
-    // 2) Black outside using even-odd (canvas rect + polygon = ring fill)
+    // Black outside using even-odd
     ctx.beginPath();
     ctx.rect(0, 0, w, h);
     ctx.moveTo(pts[0][0], pts[0][1]);
@@ -62,78 +58,101 @@ function drawLidarMap(ctx, mapId) {
     ctx.closePath();
     ctx.fillStyle = '#000';
     ctx.fill('evenodd');
-    // 3) Outer boundary line
-    path();
-    ctx.strokeStyle = WO; ctx.lineWidth = 2.5; ctx.stroke();
   };
 
-  // Inner wall line
+  // Outer wall segment (bright cyan) — skip calling for passage openings
+  const ow = (x1, y1, x2, y2) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = WO; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+  };
+
+  // Inner wall segment (dim cyan) — place gaps to form passages
   const iw = (x1, y1, x2, y2, lw = 1.5) => {
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-    ctx.strokeStyle = WI; ctx.lineWidth = lw; ctx.stroke();
+    ctx.strokeStyle = WI; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
   };
 
   // Obstacle: solid black + faint cyan border
-  const ob = (x, y, ow, oh) => {
-    ctx.fillStyle = OBS; ctx.fillRect(x, y, ow, oh);
-    ctx.strokeStyle = WI; ctx.lineWidth = 0.5; ctx.strokeRect(x, y, ow, oh);
+  const ob = (x, y, bw, bh) => {
+    ctx.fillStyle = OBS; ctx.fillRect(x, y, bw, bh);
+    ctx.strokeStyle = WI; ctx.lineWidth = 0.5; ctx.strokeRect(x, y, bw, bh);
   };
 
   // ── Per-map floor plans ──────────────────────────────────────────────────────
   if (mapId === 1) {
-    // FPT 하노이 사무소 1층 — L-shaped office block
-    poly([
-      [30, 30], [490, 30], [490, 180],
-      [730, 180],[730, 490],[30, 490],
-    ]);
-    iw(250, 30, 250, 490);          // main vertical corridor
-    iw(490, 180, 490, 490);         // right-wing divider
-    iw(30, 290, 730, 290);          // horizontal corridor
-    iw(250, 180, 490, 180);         // cross-wall (top of right wing)
-    iw(100, 30, 100, 290);          // left sub-corridor
-    ob(50,  50,  30, 120); ob(130, 55, 90, 45);
-    ob(130, 120, 90, 45);  ob(540, 210, 65, 50);
-    ob(625, 210, 70, 50);  ob(50,  330, 60, 100);
-    ob(310, 330, 100, 60);
+    // FPT 하노이 사무소 1층 — L-shaped office
+    // Passages: x=250 wall (y=120~180, y=320~390), y=290 wall (x=130~220, x=560~650)
+    poly([[30,30],[490,30],[490,180],[730,180],[730,490],[30,490]]);
+    // Outer walls (all solid — no exterior openings)
+    ow(30,30,490,30); ow(490,30,490,180); ow(490,180,730,180);
+    ow(730,180,730,490); ow(730,490,30,490); ow(30,490,30,30);
+    // Vertical divider x=250 with two passage gaps
+    iw(250,30,250,120); iw(250,180,250,320); iw(250,390,250,490);
+    // Horizontal divider y=290 with two passage gaps
+    iw(30,290,130,290); iw(220,290,490,290);
+    iw(490,290,560,290); iw(650,290,730,290);
+    // Left sub-wall x=100 with passage gap
+    iw(100,30,100,120); iw(100,180,100,290);
+    // Obstacles (furniture/equipment)
+    ob(50,50,30,120); ob(135,55,85,45); ob(135,120,85,45);
+    ob(540,210,65,50); ob(625,210,70,50);
+    ob(50,330,60,100); ob(310,330,100,60);
 
   } else if (mapId === 2) {
     // 현대건설 힐스테이트 A구역 — irregular octagonal plan
-    poly([
-      [60, 80],  [200, 30], [560, 30],
-      [720, 100],[720, 430],[540, 490],
-      [180, 490],[40,  420],[40,  160],
-    ]);
-    iw(380, 30, 380, 490);
-    iw(40, 270, 720, 270);
-    iw(200, 30, 200, 490);
-    iw(540, 30, 540, 490);
-    ob(65,  110, 100, 110); ob(65,  300, 100, 110);
-    ob(420, 60,  90,  65);  ob(580, 130, 95,  90);
-    ob(250, 155, 95,  80);  ob(580, 305, 95,  130);
+    // Passages: center x=380 (y=190~260), y=270 (x=190~280, x=480~570)
+    poly([[60,80],[200,30],[560,30],[720,100],[720,430],[540,490],[180,490],[40,420],[40,160]]);
+    // Outer walls (solid)
+    ow(60,80,200,30); ow(200,30,560,30); ow(560,30,720,100);
+    ow(720,100,720,430); ow(720,430,540,490); ow(540,490,180,490);
+    ow(180,490,40,420); ow(40,420,40,160); ow(40,160,60,80);
+    // Center vertical x=380 with passage gap
+    iw(380,30,380,190); iw(380,260,380,490);
+    // Horizontal y=270 with two passage gaps
+    iw(40,270,190,270); iw(280,270,380,270);
+    iw(380,270,480,270); iw(570,270,720,270);
+    // Side sub-walls with passage gaps
+    iw(200,30,200,190); iw(200,260,200,490);
+    iw(540,30,540,190); iw(540,260,540,490);
+    // Obstacles
+    ob(65,110,100,110); ob(65,300,100,110);
+    ob(420,60,90,65);   ob(580,130,95,90);
+    ob(250,155,95,80);  ob(580,305,95,130);
 
   } else if (mapId === 3) {
-    // 현대건설 힐스테이트 B구역 — reverse-L plan
-    poly([
-      [30, 30], [730, 30], [730, 310],
-      [430, 310],[430, 490],[30, 490],
-    ]);
-    iw(30, 200, 730, 200);
-    iw(240, 30, 240, 490);
-    iw(430, 200, 430, 490);
-    iw(600, 30, 600, 200);
-    ob(50,  50,  145, 100); ob(280, 50,  90, 100);
-    ob(640, 55,  60,  100); ob(50,  235, 145, 130);
-    ob(465, 340, 90,  110);
+    // 현대건설 힐스테이트 B구역 — reverse-L
+    // Passages: y=200 (x=110~200), x=240 (y=120~200), x=430 lower (y=310~390)
+    poly([[30,30],[730,30],[730,310],[430,310],[430,490],[30,490]]);
+    // Outer walls (solid)
+    ow(30,30,730,30); ow(730,30,730,310); ow(730,310,430,310);
+    ow(430,310,430,490); ow(430,490,30,490); ow(30,490,30,30);
+    // Horizontal y=200 with passage gap
+    iw(30,200,110,200); iw(200,200,730,200);
+    // Vertical x=240 with passage gap
+    iw(240,30,240,120); iw(240,200,240,490);
+    // Vertical x=430 lower area with passage gap
+    iw(430,200,430,310); iw(430,390,430,490);
+    // Vertical x=600 upper area with passage gap
+    iw(600,30,600,100); iw(600,160,600,200);
+    // Obstacles
+    ob(50,50,145,100); ob(280,50,90,100);
+    ob(640,55,60,100);  ob(50,235,145,130);
+    ob(465,340,90,110);
 
   } else if (mapId === 4) {
-    // SKT 대전 데이터센터 — rectangular with server-rack rows
-    poly([[20, 20],[740, 20],[740, 500],[20, 500]]);
-    iw(20, 260, 740, 260, 2);           // center aisle
-    [160, 300, 440, 580].forEach(x => iw(x, 20, x, 500));   // column separators
+    // SKT 대전 데이터센터 — rectangle with server-rack rows
+    // Passages: entrance top (x=330~410), center aisle gap (x=300~460)
+    poly([[20,20],[740,20],[740,500],[20,500]]);
+    // Outer walls with entrance passage on top
+    ow(20,20,330,20); ow(410,20,740,20);    // top (passage gap x=330~410)
+    ow(740,20,740,500); ow(740,500,20,500); ow(20,500,20,20);
+    // Center aisle divider y=260 with passage gap
+    iw(20,260,300,260,2); iw(460,260,740,260,2);
+    // Server racks (aisles between racks = natural open passages, no extra walls)
     for (let c = 0; c < 5; c++) {
       const bx = 22 + c * 140;
-      [40, 90, 140, 192].forEach(ry => ob(bx + 8, ry,  112, 32)); // top racks
-      [272, 322, 372, 422].forEach(ry => ob(bx + 8, ry, 112, 32)); // bottom racks
+      [40,90,140,192].forEach(ry => ob(bx+8, ry, 112, 32));
+      [272,322,372,422].forEach(ry => ob(bx+8, ry, 112, 32));
     }
   }
 
