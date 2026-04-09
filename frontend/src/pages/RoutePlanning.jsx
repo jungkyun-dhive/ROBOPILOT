@@ -22,18 +22,16 @@ function drawLidarMap(ctx, mapId) {
   const G = 20; // 1 m = 20 px  (0.05 m/px)
 
   // Color theme
-  const BG  = '#071e2a';   // canvas background
   const GRD = '#1a6070';   // 1 m grid lines
-  const FLR = '#0d2535';   // navigable floor fill
   const WO  = '#3de8ff';   // outer boundary (bright cyan)
   const WI  = '#00c8dc';   // inner walls
   const OBS = '#020c14';   // obstacles / equipment
 
-  // ── Background ──────────────────────────────────────────────────────────────
-  ctx.fillStyle = BG;
+  // ── Black background ─────────────────────────────────────────────────────────
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, w, h);
 
-  // ── 1 m grid ────────────────────────────────────────────────────────────────
+  // ── 1 m grid (drawn over whole canvas; outside will be covered by black later) ─
   ctx.strokeStyle = GRD;
   ctx.lineWidth = 0.5;
   for (let x = 0; x <= w; x += G) {
@@ -44,13 +42,28 @@ function drawLidarMap(ctx, mapId) {
   }
 
   // ── Draw helpers ─────────────────────────────────────────────────────────────
-  // Floor polygon with bright outer boundary
+  // poly: semi-transparent fill inside, solid black outside (even-odd), bright border
   const poly = (pts) => {
+    const path = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.closePath();
+    };
+    // 1) Semi-transparent teal fill → grid shows through inside
+    path();
+    ctx.fillStyle = 'rgba(10, 40, 55, 0.52)';
+    ctx.fill();
+    // 2) Black outside using even-odd (canvas rect + polygon = ring fill)
     ctx.beginPath();
+    ctx.rect(0, 0, w, h);
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.closePath();
-    ctx.fillStyle = FLR; ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.fill('evenodd');
+    // 3) Outer boundary line
+    path();
     ctx.strokeStyle = WO; ctx.lineWidth = 2.5; ctx.stroke();
   };
 
@@ -60,15 +73,10 @@ function drawLidarMap(ctx, mapId) {
     ctx.strokeStyle = WI; ctx.lineWidth = lw; ctx.stroke();
   };
 
-  // Obstacle: dark fill + faint cyan border
+  // Obstacle: solid black + faint cyan border
   const ob = (x, y, ow, oh) => {
     ctx.fillStyle = OBS; ctx.fillRect(x, y, ow, oh);
     ctx.strokeStyle = WI; ctx.lineWidth = 0.5; ctx.strokeRect(x, y, ow, oh);
-  };
-
-  // Door gap: paint floor color to "cut" a wall
-  const door = (x, y, dw, dh) => {
-    ctx.fillStyle = FLR; ctx.fillRect(x, y, dw, dh);
   };
 
   // ── Per-map floor plans ──────────────────────────────────────────────────────
@@ -83,8 +91,6 @@ function drawLidarMap(ctx, mapId) {
     iw(30, 290, 730, 290);          // horizontal corridor
     iw(250, 180, 490, 180);         // cross-wall (top of right wing)
     iw(100, 30, 100, 290);          // left sub-corridor
-    door(248, 120, 5, 50); door(248, 340, 5, 50);
-    door(370, 178, 80, 5); door(488, 360, 5, 55);
     ob(50,  50,  30, 120); ob(130, 55, 90, 45);
     ob(130, 120, 90, 45);  ob(540, 210, 65, 50);
     ob(625, 210, 70, 50);  ob(50,  330, 60, 100);
@@ -101,9 +107,6 @@ function drawLidarMap(ctx, mapId) {
     iw(40, 270, 720, 270);
     iw(200, 30, 200, 490);
     iw(540, 30, 540, 490);
-    door(198, 140, 5, 55); door(198, 330, 5, 55);
-    door(538, 140, 5, 55); door(538, 330, 5, 55);
-    door(280, 268, 70, 5); door(440, 268, 70, 5);
     ob(65,  110, 100, 110); ob(65,  300, 100, 110);
     ob(420, 60,  90,  65);  ob(580, 130, 95,  90);
     ob(250, 155, 95,  80);  ob(580, 305, 95,  130);
@@ -118,8 +121,6 @@ function drawLidarMap(ctx, mapId) {
     iw(240, 30, 240, 490);
     iw(430, 200, 430, 490);
     iw(600, 30, 600, 200);
-    door(238, 100, 5, 55); door(238, 330, 5, 55);
-    door(428, 290, 5, 55); door(100, 198, 80, 5);
     ob(50,  50,  145, 100); ob(280, 50,  90, 100);
     ob(640, 55,  60,  100); ob(50,  235, 145, 130);
     ob(465, 340, 90,  110);
