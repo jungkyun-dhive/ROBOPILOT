@@ -1,16 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { companyApi, siteApi, missionApi, robotApi } from '../utils/api';
-import { Building2, MapPin, Workflow, Bot, Video, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Power, Activity, AlertOctagon, Play, Square } from 'lucide-react';
+import { MonitorX, Play, Square } from 'lucide-react';
 
-const aiModules = [
-  { id: 'person', label: '사람', enabled: true },
-  { id: 'helmet', label: '안전모', enabled: true },
-  { id: 'hook', label: '안전고리', enabled: true },
-  { id: 'car', label: '자동차', enabled: false },
-  { id: 'cone', label: '안전콘', enabled: false },
-  { id: 'barrier', label: '차단벽', enabled: false },
+const generalItems = [
+  { id: 'construction', label: 'Construction', negLabel: 'No Construction' },
+  { id: 'hardhat', label: 'HardHat', negLabel: 'No HardHat' },
+  { id: 'machinery', label: 'Machinery', negLabel: '' },
+  { id: 'mask', label: 'Mask', negLabel: 'No Mask' },
 ];
+
+const dangerItems = [
+  { id: 'no_hardhat', label: 'No HardHat', negLabel: '' },
+  { id: 'no_safety_vest', label: 'No Safety Vest', negLabel: '' },
+  { id: 'no_mask', label: 'No Mask', negLabel: '' },
+  { id: 'fire', label: 'Fire', negLabel: '' },
+];
+
+function Toggle({ enabled, onChange }) {
+  return (
+    <button
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+        enabled ? 'bg-orange-400' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+          enabled ? 'translate-x-4' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  );
+}
 
 function Tasks() {
   const { user } = useAuth();
@@ -23,15 +45,25 @@ function Tasks() {
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [selectedMissionId, setSelectedMissionId] = useState('');
   const [selectedRobotId, setSelectedRobotId] = useState('');
-  const [aiDetections, setAiDetections] = useState(aiModules);
   const [missionStarted, setMissionStarted] = useState(false);
+  const [generalEnabled, setGeneralEnabled] = useState(true);
+  const [dangerEnabled, setDangerEnabled] = useState(true);
+  const [generalToggles, setGeneralToggles] = useState(
+    Object.fromEntries(generalItems.map((i) => [i.id, true]))
+  );
+  const [dangerToggles, setDangerToggles] = useState(
+    Object.fromEntries(dangerItems.map((i) => [i.id, true]))
+  );
+  const [now, setNow] = useState(new Date());
+  const timerRef = useRef(null);
 
-  // Load data on mount
   useEffect(() => {
-    loadData();
+    timerRef.current = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timerRef.current);
   }, []);
 
-  // Auto-select user's company if not System Admin
+  useEffect(() => { loadData(); }, []);
+
   useEffect(() => {
     if (user && user.role !== 'SYSTEM_ADMIN' && user.companyId && !selectedCompanyId) {
       setSelectedCompanyId(user.companyId);
@@ -42,10 +74,7 @@ function Tasks() {
     try {
       setLoading(true);
       const [companiesData, sitesData, missionsData, robotsData] = await Promise.all([
-        companyApi.getAll(),
-        siteApi.getAll(),
-        missionApi.getAll(),
-        robotApi.getAll(),
+        companyApi.getAll(), siteApi.getAll(), missionApi.getAll(), robotApi.getAll(),
       ]);
       setCompanies(companiesData || []);
       setSites(sitesData || []);
@@ -58,388 +87,222 @@ function Tasks() {
     }
   };
 
-  // 권한에 따라 회사 선택 가능 여부 결정
   const isCompanySelectable = user?.role === 'SYSTEM_ADMIN';
   const userCompanyId = user?.companyId;
-
-  // 사용자가 접근 가능한 현장 필터링
   const effectiveCompanyId = selectedCompanyId || userCompanyId;
+
   const availableSites = effectiveCompanyId
     ? sites.filter((site) => {
         const matchesCompany = site.companyId === effectiveCompanyId;
-        // Operator는 할당된 현장만 볼 수 있음
-        if (user?.role === 'OPERATOR') {
-          return matchesCompany && user.siteIds?.includes(site.id);
-        }
+        if (user?.role === 'OPERATOR') return matchesCompany && user.siteIds?.includes(site.id);
         return matchesCompany;
       })
     : [];
 
-  // 현장에 따른 미션 필터링
   const availableMissions = selectedSiteId
-    ? missions.filter((mission) => mission.siteId === selectedSiteId)
+    ? missions.filter((m) => m.siteId === selectedSiteId)
     : [];
 
-  // 현장에 따른 로봇 필터링
   const availableRobots = selectedSiteId
-    ? robots.filter((robot) => robot.siteId === selectedSiteId)
+    ? robots.filter((r) => r.siteId === selectedSiteId)
     : [];
 
-  // 선택된 로봇 정보
-  const selectedRobot = robots.find((r) => r.id === selectedRobotId);
-
-  const handleAiToggle = (moduleId) => {
-    setAiDetections(
-      aiDetections.map((module) =>
-        module.id === moduleId ? { ...module, enabled: !module.enabled } : module
-      )
-    );
-  };
-
-  // 작업 시작 버튼 활성화 조건
   const canStartMission = (selectedCompanyId || userCompanyId) && selectedSiteId && selectedMissionId && selectedRobotId;
 
-  const handleMissionToggle = () => {
-    setMissionStarted(!missionStarted);
-  };
+  const formatDateTime = (date) =>
+    date.toLocaleString('ko-KR', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+
+  const generalCount = Object.values(generalToggles).filter(Boolean).length;
+  const dangerCount = Object.values(dangerToggles).filter(Boolean).length;
+
+  const selectClass = "px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 appearance-none pr-7";
+
+  const VideoPanel = ({ label }) => (
+    <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+      <div className="px-3 py-1.5">
+        <span className="text-xs font-medium text-gray-400 bg-gray-700 px-2 py-0.5 rounded">{label}</span>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center pb-4">
+        <MonitorX className="h-12 w-12 text-gray-600" />
+        <p className="text-gray-500 text-sm">작업 시작 이후 활성화됩니다</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {/* Main Content Area */}
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Page Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-900">작업</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{formatDateTime(now)} (KST, UTC+09:00)</p>
+      </div>
+
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Center and Bottom Section */}
-        <div className="flex-1 flex flex-col p-4 space-y-4">
-          {/* Top Selection Bar with Mission Start Button */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <div className="flex gap-3 items-end">
-              {/* Company Selection */}
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  <Building2 className="inline h-3 w-3 mr-1" />
-                  회사
-                </label>
-                <select
-                  value={selectedCompanyId || (userCompanyId || '')}
-                  onChange={(e) => {
-                    setSelectedCompanyId(e.target.value);
-                    setSelectedSiteId('');
-                    setSelectedMissionId('');
-                    setSelectedRobotId('');
-                  }}
-                  disabled={!isCompanySelectable}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600"
-                >
-                  <option value="">회사 선택</option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Site Selection */}
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  <MapPin className="inline h-3 w-3 mr-1" />
-                  현장
-                </label>
-                <select
-                  value={selectedSiteId}
-                  onChange={(e) => {
-                    setSelectedSiteId(e.target.value);
-                    setSelectedMissionId('');
-                    setSelectedRobotId('');
-                  }}
-                  disabled={!selectedCompanyId && !userCompanyId}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">현장 선택</option>
-                  {availableSites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Mission Selection */}
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  <Workflow className="inline h-3 w-3 mr-1" />
-                  미션
-                </label>
-                <select
-                  value={selectedMissionId}
-                  onChange={(e) => setSelectedMissionId(e.target.value)}
-                  disabled={!selectedSiteId}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">미션 선택</option>
-                  {availableMissions.map((mission) => (
-                    <option key={mission.id} value={mission.id}>
-                      {mission.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Robot Selection */}
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  <Bot className="inline h-3 w-3 mr-1" />
-                  로봇
-                </label>
-                <select
-                  value={selectedRobotId}
-                  onChange={(e) => setSelectedRobotId(e.target.value)}
-                  disabled={!selectedSiteId}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">로봇 선택</option>
-                  {availableRobots.map((robot) => (
-                    <option key={robot.id} value={robot.id}>
-                      {robot.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Mission Start Button */}
-              <div>
-                <button
-                  onClick={handleMissionToggle}
-                  disabled={!canStartMission}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${
-                    !canStartMission
-                      ? 'bg-gray-500 text-white cursor-not-allowed'
-                      : missionStarted
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-gray-600 text-white hover:bg-gray-700'
-                  }`}
-                >
-                  {missionStarted ? (
-                    <>
-                      <Square className="h-4 w-4" />
-                      작업 중지
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4" />
-                      작업 시작
-                    </>
-                  )}
-                </button>
-              </div>
+        {/* Left: Filter + Videos */}
+        <div className="flex-1 flex flex-col p-4 gap-3 min-w-0">
+          {/* Filter Bar */}
+          <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <select
+                value={selectedCompanyId || (userCompanyId || '')}
+                onChange={(e) => {
+                  setSelectedCompanyId(e.target.value);
+                  setSelectedSiteId('');
+                  setSelectedMissionId('');
+                  setSelectedRobotId('');
+                }}
+                disabled={!isCompanySelectable}
+                className={selectClass}
+              >
+                <option value="">회사 선택</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
+            <div className="relative">
+              <select
+                value={selectedSiteId}
+                onChange={(e) => {
+                  setSelectedSiteId(e.target.value);
+                  setSelectedMissionId('');
+                  setSelectedRobotId('');
+                }}
+                disabled={!effectiveCompanyId}
+                className={selectClass}
+              >
+                <option value="">사이트 선택</option>
+                {availableSites.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <select
+                value={selectedRobotId}
+                onChange={(e) => setSelectedRobotId(e.target.value)}
+                disabled={!selectedSiteId}
+                className={selectClass}
+              >
+                <option value="">로봇 선택</option>
+                {availableRobots.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <select
+                value={selectedMissionId}
+                onChange={(e) => setSelectedMissionId(e.target.value)}
+                disabled={!selectedSiteId}
+                className={selectClass}
+              >
+                <option value="">미션 선택</option>
+                {availableMissions.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => setMissionStarted(!missionStarted)}
+              disabled={!canStartMission}
+              className={`ml-auto px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
+                !canStartMission
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : missionStarted
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-700 text-white hover:bg-gray-800'
+              }`}
+            >
+              {missionStarted ? <><Square className="h-3.5 w-3.5" />작업 중지</> : <><Play className="h-3.5 w-3.5" />작업 시작</>}
+            </button>
           </div>
 
-          {/* Video Feed */}
-          <div className="flex-1 bg-black rounded-lg overflow-hidden relative">
-            {selectedRobotId ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <Video className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 text-lg">
-                    {selectedRobot?.name} 카메라 영상
-                  </p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    실시간 영상 스트리밍 대기 중...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <Video className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">로봇을 선택하세요</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Section */}
-          <div className="h-64 grid grid-cols-2 gap-4">
-            {/* Left Bottom - Placeholder */}
-            <div className="bg-gray-800 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500">예약된 공간</p>
-            </div>
-
-            {/* Right Bottom - Map */}
-            <div className="bg-white rounded-lg border border-gray-300 overflow-hidden">
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">이동 경로 지도</p>
-                  {selectedRobotId && (
-                    <p className="text-sm text-gray-400 mt-2">
-                      {selectedRobot?.name} 위치 추적 중...
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* Two Video Panels stacked */}
+          <div className="flex-1 flex flex-col gap-3 min-h-0">
+            <VideoPanel label="OFFLINE" />
+            <VideoPanel label="OFFLINE" />
           </div>
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
-          <div className="p-4 space-y-6">
-            {/* Robot Status and Operation Info */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Robot Status */}
+        <div className="w-72 bg-white border-l border-gray-200 overflow-y-auto flex-shrink-0">
+          <div className="p-4 space-y-4">
+            {/* Robot Status + Operation Info */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">로봇 상태</h3>
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">상태</span>
-                    <span className={`text-xs font-medium mt-1 ${selectedRobotId && missionStarted ? 'text-green-600' : 'text-gray-900'}`}>
-                      {selectedRobotId ? (missionStarted ? '작업 중' : '대기') : '-'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">배터리</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">
-                      {selectedRobotId ? '85%' : '-'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">네트워크 세기</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">-</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">GPS 세기</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">-</span>
-                  </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">로봇 상태</h3>
+                <div className="space-y-2">
+                  {[['상태', '-'], ['배터리', '-'], ['네트워크 세기', '-'], ['GPS 세기', '-']].map(([label, val]) => (
+                    <div key={label} className="flex flex-col">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <span className="text-xs font-medium text-gray-900 mt-0.5">{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Operation Info */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">운행 정보</h3>
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">고도</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">
-                      {selectedRobotId ? '0m/s' : '-'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">속도</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">
-                      {selectedRobotId ? '0m/s' : '-'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">운행 시간</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">
-                      {selectedRobotId && missionStarted ? '00:00:00' : '-'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-600">시작 시간</span>
-                    <span className="text-xs font-medium text-gray-900 mt-1">
-                      {selectedRobotId && missionStarted ? new Date().toLocaleString('ko-KR') : '-'}
-                    </span>
-                  </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">운행 정보</h3>
+                <div className="space-y-2">
+                  {[['고도', '-'], ['속도', '-'], ['운행 시간', '-'], ['시작 시간', '-']].map(([label, val]) => (
+                    <div key={label} className="flex flex-col">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <span className="text-xs font-medium text-gray-900 mt-0.5">{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* AI Modules Section */}
+            <div className="border-t border-gray-100" />
+
+            {/* AI Model Section */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 모듈</h3>
-              <div className="space-y-2">
-                {aiDetections.map((module) => (
-                  <label
-                    key={module.id}
-                    className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={module.enabled}
-                      onChange={() => handleAiToggle(module.id)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      {module.label}
-                    </span>
-                  </label>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">AI 모델</h3>
+
+              {/* Category Headers */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Toggle enabled={generalEnabled} onChange={() => setGeneralEnabled(!generalEnabled)} />
+                  <span className="text-xs font-medium text-gray-700">일반 감지</span>
+                  <span className="text-xs text-gray-400">({generalCount}/{generalItems.length})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Toggle enabled={dangerEnabled} onChange={() => setDangerEnabled(!dangerEnabled)} />
+                  <span className="text-xs font-medium text-gray-700">위험 감지</span>
+                  <span className="text-xs text-gray-400">({dangerCount}/{dangerItems.length})</span>
+                </div>
+              </div>
+
+              {/* Detection Items Grid */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                {generalItems.map((item, idx) => (
+                  <div key={item.id} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded font-medium leading-none">YOLO</span>
+                      <span className="text-xs text-gray-700 flex-1 truncate">{item.label}</span>
+                      <Toggle
+                        enabled={generalToggles[item.id]}
+                        onChange={() => setGeneralToggles((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                      />
+                    </div>
+                    {dangerItems[idx] && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs bg-orange-400 text-white px-1.5 py-0.5 rounded font-medium leading-none">YOLO</span>
+                        <span className="text-xs text-gray-700 flex-1 truncate">{dangerItems[idx].label}</span>
+                        <Toggle
+                          enabled={dangerToggles[dangerItems[idx].id]}
+                          onChange={() => setDangerToggles((prev) => ({ ...prev, [dangerItems[idx].id]: !prev[dangerItems[idx].id] }))}
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
-
-            {/* Control Panel */}
-            {selectedRobotId && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  {selectedRobot?.type === 'DRONE' ? '드론 제어' : '로봇 제어'}
-                </h3>
-                {selectedRobot?.type === 'DRONE' ? (
-                  <div className="space-y-3">
-                    {/* Drone Controls */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-3 flex justify-center">
-                        <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                          <ChevronUp className="h-6 w-6 text-blue-600" />
-                        </button>
-                      </div>
-                      <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                        <ChevronLeft className="h-6 w-6 text-blue-600" />
-                      </button>
-                      <button className="p-3 bg-green-100 rounded-lg hover:bg-green-200">
-                        <Power className="h-6 w-6 text-green-600" />
-                      </button>
-                      <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                        <ChevronRight className="h-6 w-6 text-blue-600" />
-                      </button>
-                      <div className="col-span-3 flex justify-center">
-                        <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                          <ChevronDown className="h-6 w-6 text-blue-600" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <button className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm font-medium">
-                        자동 이륙
-                      </button>
-                      <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium">
-                        비상 착륙
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Robot Controls */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-3 flex justify-center">
-                        <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                          <ChevronUp className="h-6 w-6 text-blue-600" />
-                        </button>
-                      </div>
-                      <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                        <ChevronLeft className="h-6 w-6 text-blue-600" />
-                      </button>
-                      <button className="p-3 bg-red-100 rounded-lg hover:bg-red-200">
-                        <Power className="h-6 w-6 text-red-600" />
-                      </button>
-                      <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                        <ChevronRight className="h-6 w-6 text-blue-600" />
-                      </button>
-                      <div className="col-span-3 flex justify-center">
-                        <button className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200">
-                          <ChevronDown className="h-6 w-6 text-blue-600" />
-                        </button>
-                      </div>
-                    </div>
-                    <button className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium flex items-center justify-center gap-2">
-                      <AlertOctagon className="h-4 w-4" />
-                      비상 정지
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
