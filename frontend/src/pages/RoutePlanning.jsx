@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
-  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2
+  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw
 } from 'lucide-react';
 
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
@@ -20,11 +20,9 @@ function drawLidarMap(ctx, mapId) {
   const w = MAP_W;
   const h = MAP_H;
 
-  // free-space background
   ctx.fillStyle = '#d6d6d6';
   ctx.fillRect(0, 0, w, h);
 
-  // occupancy grid dots
   ctx.fillStyle = '#c8c8c8';
   for (let x = 0; x < w; x += 8) {
     for (let y = 0; y < h; y += 8) {
@@ -32,19 +30,16 @@ function drawLidarMap(ctx, mapId) {
     }
   }
 
-  // wall helper
   const wall = (x, y, bw, bh) => {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(x, y, bw, bh);
   };
-  // gap (door) helper – erases wall with background
   const gap = (x, y, gw, gh) => {
     ctx.fillStyle = '#d6d6d6';
     ctx.fillRect(x, y, gw, gh);
   };
 
   if (mapId === 1) {
-    // ── Office 1F ──────────────────────────────────────────
     wall(40, 40, 680, 10);   wall(40, 470, 680, 10);
     wall(40, 40, 10, 440);   wall(710, 40, 10, 440);
     wall(180, 40, 8, 180);   wall(380, 40, 8, 180);
@@ -53,38 +48,31 @@ function drawLidarMap(ctx, mapId) {
     wall(180, 290, 210, 8);
     wall(550, 40, 8, 200);   wall(550, 290, 8, 190);
     wall(550, 240, 170, 8);
-    // doors
     gap(220, 40, 60, 10); gap(420, 40, 60, 10);
     gap(180, 340, 8, 55);    gap(380, 330, 8, 55);
     gap(550, 150, 8, 55);    gap(550, 380, 8, 55);
-    // furniture blobs
     ctx.fillStyle = '#b0b0b0';
     [[80,80,60,30],[80,200,60,80],[210,60,100,40],[420,60,80,40],[610,60,80,40]].forEach(
       ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
     );
   } else if (mapId === 2) {
-    // ── Construction A ────────────────────────────────────
     wall(30, 30, 700, 12);   wall(30, 478, 700, 12);
     wall(30, 30, 12, 460);   wall(718, 30, 12, 460);
     wall(200, 30, 12, 220);  wall(200, 310, 12, 180);
     wall(480, 30, 12, 160);  wall(480, 260, 12, 230);
     wall(200, 248, 292, 12);
-    // doors
     gap(200, 110, 12, 60); gap(200, 360, 12, 60);
     gap(480, 190, 12, 60);   gap(310, 30, 80, 12);
-    // scattered obstacles (equipment)
     ctx.fillStyle = '#888';
     [[60,60,50,50],[60,220,50,80],[250,60,80,60],[540,60,80,60],[250,310,80,80]].forEach(
       ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
     );
   } else if (mapId === 3) {
-    // ── Construction B ────────────────────────────────────
     wall(50, 50, 660, 12);   wall(50, 458, 660, 12);
     wall(50, 50, 12, 420);   wall(698, 50, 12, 420);
     wall(280, 50, 12, 280);  wall(280, 390, 12, 80);
     wall(50, 270, 242, 12);  wall(280, 380, 420, 12);
     wall(500, 50, 12, 130);  wall(500, 230, 12, 160);
-    // doors
     gap(280, 150, 12, 60); gap(280, 430, 12, 40);
     gap(500, 160, 12, 60); gap(150, 270, 60, 12);
     gap(400, 380, 12, 60);
@@ -93,25 +81,20 @@ function drawLidarMap(ctx, mapId) {
       ([x,y,bw,bh]) => ctx.fillRect(x, y, bw, bh)
     );
   } else if (mapId === 4) {
-    // ── Data Center ───────────────────────────────────────
     wall(20, 20, 720, 12);   wall(20, 488, 720, 12);
     wall(20, 20, 12, 480);   wall(728, 20, 12, 480);
     wall(20, 240, 720, 10);
-    // server racks (top half)
     for (let i = 0; i < 5; i++) {
       wall(80 + i * 120, 60, 70, 140);
-      gap(80 + i * 120 + 10, 60, 50, 12); // cooling gap
+      gap(80 + i * 120 + 10, 60, 50, 12);
     }
-    // server racks (bottom half)
     for (let i = 0; i < 5; i++) {
       wall(80 + i * 120, 300, 70, 140);
       gap(80 + i * 120 + 10, 430, 50, 12);
     }
-    // doors
     gap(340, 240, 80, 10); gap(340, 20, 80, 12);
   }
 
-  // Origin marker (robot start)
   ctx.fillStyle = '#2563eb';
   ctx.beginPath();
   ctx.arc(80, 430, 10, 0, Math.PI * 2);
@@ -122,13 +105,10 @@ function drawLidarMap(ctx, mapId) {
   ctx.textBaseline = 'middle';
   ctx.fillText('S', 80, 430);
 
-  // scale bar
   ctx.strokeStyle = '#555';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(w - 120, h - 25);
-  ctx.lineTo(w - 20, h - 25);
-  ctx.stroke();
+  ctx.moveTo(w - 120, h - 25); ctx.lineTo(w - 20, h - 25); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(w - 120, h - 30); ctx.lineTo(w - 120, h - 20); ctx.stroke();
   ctx.beginPath();
@@ -139,90 +119,55 @@ function drawLidarMap(ctx, mapId) {
   ctx.fillText('5 m', w - 70, h - 12);
 }
 
-// ─── Waypoint drawing on SVG ─────────────────────────────────────────────────
-const WP_R = 12;
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const WP_R = 13;      // waypoint circle radius
+const HANDLE_DIST = WP_R + 22; // rotation handle distance from center
 
-function WaypointOverlay({ waypoints, selected, tool, onCanvasClick, onWpMouseDown, onMouseMove, onMouseUp }) {
-  return (
-    <svg
-      width={MAP_W}
-      height={MAP_H}
-      className="absolute inset-0"
-      style={{ cursor: tool === 'add' ? 'crosshair' : 'default' }}
-      onClick={onCanvasClick}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-    >
-      {/* Path lines */}
-      {waypoints.map((wp, i) => {
-        if (i === 0) return null;
-        const prev = waypoints[i - 1];
-        return (
-          <g key={`line-${wp.id}`}>
-            <line
-              x1={prev.x} y1={prev.y}
-              x2={wp.x} y2={wp.y}
-              stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3"
-            />
-            {/* Arrow */}
-            <polygon
-              points={getArrowPoints(prev.x, prev.y, wp.x, wp.y)}
-              fill="#3b82f6"
-            />
-          </g>
-        );
-      })}
-
-      {/* Waypoint circles */}
-      {waypoints.map((wp, i) => (
-        <g
-          key={wp.id}
-          transform={`translate(${wp.x},${wp.y})`}
-          onMouseDown={(e) => { e.stopPropagation(); onWpMouseDown(e, wp.id); }}
-          style={{ cursor: tool === 'move' ? 'grab' : 'pointer' }}
-        >
-          {/* Halo when selected */}
-          {selected === wp.id && (
-            <circle r={WP_R + 5} fill="rgba(59,130,246,0.25)" />
-          )}
-          <circle r={WP_R} fill={i === 0 ? '#16a34a' : '#3b82f6'} stroke="#fff" strokeWidth={2} />
-          <text
-            textAnchor="middle" dominantBaseline="central"
-            fill="#fff" fontSize={10} fontWeight="bold"
-            style={{ userSelect: 'none', pointerEvents: 'none' }}
-          >
-            {i + 1}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function getArrowPoints(x1, y1, x2, y2) {
+// Calculate heading (degrees, 0=north/up, clockwise) from point A to B
+function calcHeading(x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
+  // atan2(dy, dx) → angle from east, clockwise in SVG coords
+  // +90 → 0 = north
+  const deg = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+  return Math.round(deg);
+}
+
+// Path line midpoint arrow points
+function getPathArrowPoints(x1, y1, x2, y2) {
+  const dx = x2 - x1; const dy = y2 - y1;
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const size = 8;
-  const px = -uy * (size / 2);
-  const py = ux * (size / 2);
+  const ux = dx / len; const uy = dy / len;
+  const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
+  const size = 7;
+  const px = -uy * (size / 2); const py = ux * (size / 2);
   return `${mx + ux * size},${my + uy * size} ${mx - ux * size / 2 + px},${my - uy * size / 2 + py} ${mx - ux * size / 2 - px},${my - uy * size / 2 - py}`;
+}
+
+// Convert heading degrees to rotation handle position (in waypoint-local coords)
+function handlePos(heading) {
+  const rad = (heading - 90) * Math.PI / 180; // 0°=north → -π/2 rad from east
+  return {
+    x: Math.cos(rad) * HANDLE_DIST,
+    y: Math.sin(rad) * HANDLE_DIST,
+  };
 }
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 function RoutePlanning() {
   const [selectedMapId, setSelectedMapId] = useState(null);
   const [waypoints, setWaypoints] = useState([]);
-  const [tool, setTool] = useState('add'); // 'add' | 'move'
+  // tool: 'add' | 'move'
+  const [tool, setTool] = useState('add');
   const [selectedWpId, setSelectedWpId] = useState(null);
-  const [dragging, setDragging] = useState(null); // { id, offsetX, offsetY }
+  // dragging: { id, offX, offY }
+  const [dragging, setDragging] = useState(null);
+  // rotating: waypoint id being rotated
+  const [rotating, setRotating] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
   const canvasRef = useRef(null);
+  const svgRef = useRef(null);
   const nextId = useRef(1);
 
   // Draw map on canvas when selection changes
@@ -232,75 +177,110 @@ function RoutePlanning() {
     drawLidarMap(ctx, selectedMapId);
   }, [selectedMapId]);
 
-  // ── Waypoint add ───────────────────────────────────────
-  const handleCanvasClick = useCallback((e) => {
-    if (tool !== 'add') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    setWaypoints((prev) => [...prev, { id: nextId.current++, x, y }]);
-  }, [tool, zoom]);
+  // ── SVG mouse coordinate helper ──────────────────────────
+  const svgCoords = useCallback((e) => {
+    const rect = svgRef.current.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / zoom,
+      y: (e.clientY - rect.top) / zoom,
+    };
+  }, [zoom]);
 
-  // ── Waypoint drag ──────────────────────────────────────
+  // ── Add waypoint (click on canvas background) ────────────
+  const handleSvgClick = useCallback((e) => {
+    // Only fires when clicking the SVG background, not on waypoints
+    if (e.target !== svgRef.current && e.target.dataset.bg !== 'true') return;
+    if (tool === 'move') { setSelectedWpId(null); return; }
+    if (tool !== 'add') return;
+
+    const { x, y } = svgCoords(e);
+    setWaypoints((prev) => {
+      const prev_wp = prev[prev.length - 1];
+      const heading = prev_wp ? calcHeading(prev_wp.x, prev_wp.y, x, y) : 0;
+      return [...prev, { id: nextId.current++, x, y, heading }];
+    });
+  }, [tool, svgCoords]);
+
+  // ── Select waypoint (click on circle) ───────────────────
+  const handleWpClick = useCallback((e, id) => {
+    e.stopPropagation();
+    setSelectedWpId((prev) => prev === id ? null : id);
+  }, []);
+
+  // ── Start drag (move mode) ───────────────────────────────
   const handleWpMouseDown = useCallback((e, id) => {
     if (tool !== 'move') return;
-    setSelectedWpId(id);
-    const rect = e.currentTarget.closest('svg').getBoundingClientRect();
-    const wp = waypoints.find((w) => w.id === id);
-    setDragging({
-      id,
-      offsetX: (e.clientX - rect.left) / zoom - wp.x,
-      offsetY: (e.clientY - rect.top) / zoom - wp.y,
-    });
+    e.stopPropagation();
     e.preventDefault();
-  }, [tool, waypoints, zoom]);
+    setSelectedWpId(id);
+    const { x, y } = svgCoords(e);
+    const wp = waypoints.find((w) => w.id === id);
+    setDragging({ id, offX: x - wp.x, offY: y - wp.y });
+  }, [tool, waypoints, svgCoords]);
 
+  // ── Start rotate (drag the heading handle) ───────────────
+  const handleRotateMouseDown = useCallback((e, id) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setRotating(id);
+  }, []);
+
+  // ── Mouse move (drag or rotate) ──────────────────────────
   const handleMouseMove = useCallback((e) => {
-    if (!dragging) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(MAP_W, (e.clientX - rect.left) / zoom - dragging.offsetX));
-    const y = Math.max(0, Math.min(MAP_H, (e.clientY - rect.top) / zoom - dragging.offsetY));
-    setWaypoints((prev) =>
-      prev.map((w) => w.id === dragging.id ? { ...w, x, y } : w)
-    );
-  }, [dragging, zoom]);
+    if (!dragging && !rotating) return;
+    const { x, y } = svgCoords(e);
+
+    if (dragging) {
+      setWaypoints((prev) =>
+        prev.map((w) =>
+          w.id === dragging.id
+            ? { ...w,
+                x: Math.max(0, Math.min(MAP_W, x - dragging.offX)),
+                y: Math.max(0, Math.min(MAP_H, y - dragging.offY)),
+              }
+            : w
+        )
+      );
+    }
+
+    if (rotating) {
+      const wp = waypoints.find((w) => w.id === rotating);
+      if (!wp) return;
+      const dx = x - wp.x;
+      const dy = y - wp.y;
+      const newHeading = Math.round((Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360);
+      setWaypoints((prev) =>
+        prev.map((w) => w.id === rotating ? { ...w, heading: newHeading } : w)
+      );
+    }
+  }, [dragging, rotating, waypoints, svgCoords]);
 
   const handleMouseUp = useCallback(() => {
     setDragging(null);
+    setRotating(null);
   }, []);
 
-  // ── Waypoint delete ────────────────────────────────────
+  // ── Delete waypoint ──────────────────────────────────────
   const deleteWaypoint = (id) => {
     setWaypoints((prev) => prev.filter((w) => w.id !== id));
     if (selectedWpId === id) setSelectedWpId(null);
   };
 
   const clearAll = () => {
-    setWaypoints([]);
-    setSelectedWpId(null);
-    nextId.current = 1;
+    setWaypoints([]); setSelectedWpId(null); nextId.current = 1;
   };
 
-  // ── Save ───────────────────────────────────────────────
+  // ── Save JSON ─────────────────────────────────────────────
   const saveRoute = () => {
     const map = MOCK_MAPS.find((m) => m.id === selectedMapId);
     const data = {
       version: '1.0',
-      map: {
-        id: map.id,
-        name: map.name,
-        site: map.site,
-        resolution: map.resolution,
-        width: MAP_W,
-        height: MAP_H,
-      },
+      map: { id: map.id, name: map.name, site: map.site, resolution: map.resolution, width: MAP_W, height: MAP_H },
       waypoints: waypoints.map((wp, i) => ({
-        index: i + 1,
-        id: wp.id,
-        x_px: Math.round(wp.x),
-        y_px: Math.round(wp.y),
-        x_m: +(wp.x * 0.05).toFixed(2),
-        y_m: +(wp.y * 0.05).toFixed(2),
+        index: i + 1, id: wp.id,
+        x_px: Math.round(wp.x), y_px: Math.round(wp.y),
+        x_m: +(wp.x * 0.05).toFixed(2), y_m: +(wp.y * 0.05).toFixed(2),
+        heading_deg: wp.heading,
       })),
       totalDistance_m: getTotalDistance(),
       createdAt: new Date().toISOString(),
@@ -325,26 +305,22 @@ function RoutePlanning() {
   };
 
   const selectedMap = MOCK_MAPS.find((m) => m.id === selectedMapId);
+  const selectedWp = waypoints.find((w) => w.id === selectedWpId);
+  const selectedWpIndex = waypoints.findIndex((w) => w.id === selectedWpId);
 
   return (
     <div className="h-full flex bg-gray-100 overflow-hidden">
 
-      {/* ── Left panel: map list ───────────────────────── */}
+      {/* ── Left: map list ──────────────────────────────── */}
       <div className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-            <Map className="h-4 w-4 text-blue-500" />
-            LiDAR 맵 목록
+            <Map className="h-4 w-4 text-blue-500" />LiDAR 맵 목록
           </h2>
         </div>
-
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {/* Group by site */}
           {Object.entries(
-            MOCK_MAPS.reduce((acc, m) => {
-              (acc[m.site] = acc[m.site] || []).push(m);
-              return acc;
-            }, {})
+            MOCK_MAPS.reduce((acc, m) => { (acc[m.site] = acc[m.site] || []).push(m); return acc; }, {})
           ).map(([site, maps]) => (
             <div key={site}>
               <button
@@ -357,16 +333,9 @@ function RoutePlanning() {
               {mapListOpen && maps.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => {
-                    setSelectedMapId(m.id);
-                    setWaypoints([]);
-                    nextId.current = 1;
-                    setSelectedWpId(null);
-                  }}
+                  onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); }}
                   className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                    selectedMapId === m.id
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                    selectedMapId === m.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
@@ -376,8 +345,6 @@ function RoutePlanning() {
             </div>
           ))}
         </div>
-
-        {/* Map info */}
         {selectedMap && (
           <div className="border-t border-gray-200 p-3 text-xs text-gray-500 space-y-0.5">
             <div className="font-semibold text-gray-700 truncate">{selectedMap.name}</div>
@@ -387,18 +354,19 @@ function RoutePlanning() {
         )}
       </div>
 
-      {/* ── Center: canvas + toolbar ───────────────────── */}
+      {/* ── Center: canvas + toolbar ─────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-800 mr-2">
+        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-gray-800 mr-1">
             {selectedMap ? selectedMap.name : '맵을 선택하세요'}
           </span>
 
+          {/* Tool toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
             <button
               onClick={() => setTool('add')}
-              title="웨이포인트 추가 (클릭)"
+              title="웨이포인트 추가"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 tool === 'add' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -407,7 +375,7 @@ function RoutePlanning() {
             </button>
             <button
               onClick={() => setTool('move')}
-              title="웨이포인트 이동 (드래그)"
+              title="위치 이동 / 방향 회전"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 tool === 'move' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -416,81 +384,173 @@ function RoutePlanning() {
             </button>
           </div>
 
-          <div className="flex items-center gap-1 ml-1">
-            <button
-              onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))}
-              className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="확대"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </button>
+          {/* Zoom */}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ZoomIn className="h-4 w-4" /></button>
             <span className="text-xs text-gray-500 w-10 text-center">{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(1)))}
-              className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="축소"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setZoom(1)}
-              className="p-1.5 rounded hover:bg-gray-100 text-gray-500" title="원래 크기"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </button>
+            <button onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(1)))} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ZoomOut className="h-4 w-4" /></button>
+            <button onClick={() => setZoom(1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><Maximize2 className="h-4 w-4" /></button>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-3 ml-2 text-xs text-gray-400 border-l pl-3">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />출발점
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />웨이포인트
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />방향 핸들
+            </span>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={clearAll}
-              disabled={waypoints.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <button onClick={clearAll} disabled={waypoints.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200 disabled:opacity-40 disabled:cursor-not-allowed">
               <RotateCcw className="h-3.5 w-3.5" />전체 초기화
             </button>
-            <button
-              onClick={saveRoute}
-              disabled={!selectedMapId || waypoints.length < 2}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <button onClick={saveRoute} disabled={!selectedMapId || waypoints.length < 2}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
               <Download className="h-3.5 w-3.5" />경로 저장
             </button>
           </div>
         </div>
 
         {/* Canvas area */}
-        <div className="flex-1 overflow-auto p-4 flex items-start justify-start">
+        <div className="flex-1 overflow-auto p-4">
           {!selectedMapId ? (
-            <div className="flex-1 h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
               <Map className="h-16 w-16 text-gray-300" />
               <p className="text-sm">왼쪽에서 LiDAR 맵을 선택하세요</p>
             </div>
           ) : (
-            <div
-              style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: 'top left',
-                position: 'relative',
-                width: MAP_W,
-                height: MAP_H,
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left',
+                          position: 'relative', width: MAP_W, height: MAP_H, flexShrink: 0 }}>
               {/* Map canvas */}
-              <canvas
-                ref={canvasRef}
-                width={MAP_W}
-                height={MAP_H}
-                style={{ display: 'block', borderRadius: 8 }}
-              />
+              <canvas ref={canvasRef} width={MAP_W} height={MAP_H}
+                style={{ display: 'block', borderRadius: 8 }} />
+
               {/* Waypoint SVG overlay */}
-              <WaypointOverlay
-                waypoints={waypoints}
-                selected={selectedWpId}
-                tool={tool}
-                onCanvasClick={handleCanvasClick}
-                onWpMouseDown={handleWpMouseDown}
+              <svg
+                ref={svgRef}
+                width={MAP_W} height={MAP_H}
+                className="absolute inset-0"
+                style={{ cursor: tool === 'add' ? 'crosshair' : 'default', borderRadius: 8 }}
+                onClick={handleSvgClick}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-              />
+                onMouseLeave={handleMouseUp}
+              >
+                {/* Transparent background catch */}
+                <rect width={MAP_W} height={MAP_H} fill="transparent" data-bg="true" />
+
+                {/* Path lines */}
+                {waypoints.map((wp, i) => {
+                  if (i === 0) return null;
+                  const prev = waypoints[i - 1];
+                  return (
+                    <g key={`line-${wp.id}`} style={{ pointerEvents: 'none' }}>
+                      <line x1={prev.x} y1={prev.y} x2={wp.x} y2={wp.y}
+                        stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3" />
+                      <polygon points={getPathArrowPoints(prev.x, prev.y, wp.x, wp.y)} fill="#3b82f6" />
+                    </g>
+                  );
+                })}
+
+                {/* Waypoints */}
+                {waypoints.map((wp, i) => {
+                  const isSelected = selectedWpId === wp.id;
+                  const color = i === 0 ? '#16a34a' : '#3b82f6';
+                  const hPos = handlePos(wp.heading);
+
+                  return (
+                    <g key={wp.id} transform={`translate(${wp.x},${wp.y})`}>
+
+                      {/* Selection ring */}
+                      {isSelected && (
+                        <circle r={WP_R + 7}
+                          fill="rgba(59,130,246,0.15)"
+                          stroke="rgba(59,130,246,0.5)"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 2"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                      )}
+
+                      {/* Rotation handle line (shown when selected) */}
+                      {isSelected && (
+                        <line x1={0} y1={0} x2={hPos.x} y2={hPos.y}
+                          stroke="rgba(251,146,60,0.6)" strokeWidth={1.5} strokeDasharray="3 2"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                      )}
+
+                      {/* Direction arrow group (rotates with heading) */}
+                      <g transform={`rotate(${wp.heading})`} style={{ pointerEvents: 'none' }}>
+                        {/* Stem line from circle edge upward */}
+                        <line x1={0} y1={-WP_R} x2={0} y2={-WP_R - 8}
+                          stroke="rgba(255,255,255,0.85)" strokeWidth={2.5} strokeLinecap="round" />
+                        {/* Arrowhead triangle */}
+                        <polygon points={`0,${-WP_R - 16} -5,${-WP_R - 7} 5,${-WP_R - 7}`}
+                          fill="rgba(255,255,255,0.95)" />
+                      </g>
+
+                      {/* Circle body (clickable / draggable) */}
+                      <circle
+                        r={WP_R}
+                        fill={color}
+                        stroke="#fff"
+                        strokeWidth={2.5}
+                        style={{ cursor: tool === 'move' ? 'grab' : 'pointer' }}
+                        onMouseDown={(e) => {
+                          if (tool === 'move') handleWpMouseDown(e, wp.id);
+                          else handleWpClick(e, wp.id);
+                        }}
+                        onClick={(e) => {
+                          if (tool === 'add') handleWpClick(e, wp.id);
+                        }}
+                      />
+
+                      {/* Number label (never rotates) */}
+                      <text textAnchor="middle" dominantBaseline="central"
+                        fill="#fff" fontSize={10} fontWeight="bold"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                        {i + 1}
+                      </text>
+
+                      {/* Rotation handle dot (shown when selected) */}
+                      {isSelected && (
+                        <circle
+                          cx={hPos.x} cy={hPos.y}
+                          r={7}
+                          fill="#f97316"
+                          stroke="#fff"
+                          strokeWidth={2}
+                          style={{ cursor: 'grab' }}
+                          onMouseDown={(e) => handleRotateMouseDown(e, wp.id)}
+                        />
+                      )}
+
+                      {/* Heading label near handle */}
+                      {isSelected && (
+                        <text
+                          x={hPos.x + (hPos.x >= 0 ? 12 : -12)}
+                          y={hPos.y}
+                          textAnchor={hPos.x >= 0 ? 'start' : 'end'}
+                          dominantBaseline="central"
+                          fill="#f97316"
+                          fontSize={10}
+                          fontWeight="bold"
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {wp.heading}°
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
             </div>
           )}
         </div>
@@ -499,16 +559,23 @@ function RoutePlanning() {
         {selectedMapId && (
           <div className="bg-white border-t border-gray-200 px-4 py-2 flex items-center gap-4 text-xs text-gray-500">
             <span>웨이포인트: <strong className="text-gray-800">{waypoints.length}</strong></span>
-            <span>총 경로 거리: <strong className="text-gray-800">{getTotalDistance()} m</strong></span>
-            <span className="text-gray-400 ml-auto">
-              {tool === 'add' ? '클릭하여 웨이포인트 추가' : '웨이포인트를 드래그하여 이동'}
-            </span>
+            <span>총 경로: <strong className="text-gray-800">{getTotalDistance()} m</strong></span>
+            {selectedWp && (
+              <span className="text-blue-600 font-medium">
+                WP-{String(selectedWpIndex + 1).padStart(2, '0')} 선택됨 — 방향 {selectedWp.heading}° | 주황 핸들을 드래그하여 방향 변경
+              </span>
+            )}
+            {!selectedWp && (
+              <span className="text-gray-400 ml-auto">
+                {tool === 'add' ? '클릭: 웨이포인트 추가 / 기존 WP 클릭: 선택' : '드래그: 위치 이동 | WP 클릭 후 주황 핸들 드래그: 방향 회전'}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {/* ── Right panel: waypoint list ─────────────────── */}
-      <div className="w-56 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
+      {/* ── Right: waypoint list ─────────────────────────── */}
+      <div className="w-60 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-800">웨이포인트 목록</h2>
         </div>
@@ -526,7 +593,9 @@ function RoutePlanning() {
                   key={wp.id}
                   onClick={() => setSelectedWpId(wp.id === selectedWpId ? null : wp.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    selectedWpId === wp.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'
+                    selectedWpId === wp.id
+                      ? 'bg-blue-50 border border-blue-200'
+                      : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
@@ -535,16 +604,24 @@ function RoutePlanning() {
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-800">
-                      WP-{String(i + 1).padStart(2, '0')}
-                    </div>
+                    <div className="text-xs font-medium text-gray-800">WP-{String(i + 1).padStart(2, '0')}</div>
                     <div className="text-xs text-gray-400">
-                      ({Math.round(wp.x * 0.05 * 10) / 10}m, {Math.round(wp.y * 0.05 * 10) / 10}m)
+                      {(wp.x * 0.05).toFixed(1)}m, {(wp.y * 0.05).toFixed(1)}m
                     </div>
+                  </div>
+                  {/* Heading indicator */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <svg width={18} height={18} viewBox="-10 -10 20 20">
+                      <circle r={8} fill="none" stroke="#e5e7eb" strokeWidth={1.5} />
+                      <g transform={`rotate(${wp.heading})`}>
+                        <polygon points="0,-7 -3,-1 3,-1" fill={i === 0 ? '#16a34a' : '#3b82f6'} />
+                      </g>
+                    </svg>
+                    <span className="text-xs text-orange-500 font-medium leading-none">{wp.heading}°</span>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteWaypoint(wp.id); }}
-                    className="p-0.5 text-gray-300 hover:text-red-500 rounded"
+                    className="p-0.5 text-gray-300 hover:text-red-500 rounded flex-shrink-0"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -554,7 +631,32 @@ function RoutePlanning() {
           )}
         </div>
 
-        {/* Distance summary */}
+        {/* Selected WP heading editor */}
+        {selectedWp && (
+          <div className="border-t border-gray-200 p-3">
+            <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+              <RotateCw className="h-3.5 w-3.5 text-orange-400" />
+              WP-{String(selectedWpIndex + 1).padStart(2, '0')} 방향 설정
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={0} max={359}
+                value={selectedWp.heading}
+                onChange={(e) => setWaypoints((prev) =>
+                  prev.map((w) => w.id === selectedWp.id ? { ...w, heading: Number(e.target.value) } : w)
+                )}
+                className="flex-1 h-1.5 accent-orange-400"
+              />
+              <span className="text-xs font-bold text-orange-500 w-10 text-right">{selectedWp.heading}°</span>
+            </div>
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>N(0°)</span><span>E(90°)</span><span>S(180°)</span><span>W(270°)</span>
+            </div>
+          </div>
+        )}
+
+        {/* Summary */}
         {waypoints.length >= 2 && (
           <div className="border-t border-gray-200 p-3 space-y-1.5">
             <div className="flex justify-between text-xs">
@@ -564,7 +666,7 @@ function RoutePlanning() {
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">예상 시간</span>
               <span className="font-semibold text-gray-800">
-                {Math.round(getTotalDistance() / 0.5 / 60)}분 {Math.round(getTotalDistance() / 0.5 % 60)}초
+                {Math.floor(getTotalDistance() / 0.5 / 60)}분 {Math.round(getTotalDistance() / 0.5 % 60)}초
               </span>
             </div>
             <div className="text-xs text-gray-400">(기준 속도: 0.5 m/s)</div>
