@@ -9,9 +9,9 @@ import { siteApi } from '../utils/api';
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
 const MOCK_MAPS = [
   { id: 1, name: 'FPT 하노이 사무소 1층', site: 'Duy Tan, Hanoi', scannedAt: '2026-03-15', resolution: '0.05m/px' },
-  { id: 2, name: '현대건설 힐스테이트 A구역', site: '힐스테이트 도안2단지', scannedAt: '2026-03-20', resolution: '0.05m/px' },
-  { id: 3, name: '현대건설 힐스테이트 B구역', site: '힐스테이트 도안2단지', scannedAt: '2026-03-22', resolution: '0.05m/px' },
-  { id: 4, name: 'SKT 대전 데이터센터', site: '대전광역시 유성구', scannedAt: '2026-04-01', resolution: '0.05m/px' },
+  { id: 2, name: '보관창고 A구역', site: '울산 조선소', scannedAt: '2026-03-20', resolution: '0.05m/px' },
+  { id: 3, name: '보관창고 B구역', site: '울산 조선소', scannedAt: '2026-03-22', resolution: '0.05m/px' },
+  { id: 4, name: '데이터 센터', site: '판교 R&D 센터', scannedAt: '2026-04-01', resolution: '0.05m/px' },
 ];
 
 const MAP_W = 760;
