@@ -19,13 +19,8 @@ const MAP_H = 520;
 
 // ─── Map editor background (black + white grid only) ────────────────────────
 function drawEditorBg(ctx) {
-  const G = 20;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, MAP_W, MAP_H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 0.75;
-  for (let x = 0; x <= MAP_W; x += G) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_H); ctx.stroke(); }
-  for (let y = 0; y <= MAP_H; y += G) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_W, y); ctx.stroke(); }
 }
 
 // ─── Render a user-created map (finished state, same style as MOCK_MAPS) ────
@@ -722,6 +717,13 @@ function RoutePlanning() {
   };
 
   const handleLoadRoute = (route, mapId) => {
+    // Close map editor first so route planning view is shown
+    if (mapEditor) {
+      setMapEditor(null);
+      setActiveEditMapId(null);
+      setWallStart(null); setMousePos(null);
+      setNogoDrawing(null); setEditorDrag(null);
+    }
     setSelectedMapId(mapId);
     const wps = route.waypoints.map((wp) => ({ ...wp }));
     setWaypoints(wps);
@@ -1203,6 +1205,14 @@ function RoutePlanning() {
                     </g>
                   );
                 })}
+
+                {/* 1m grid — rendered LAST so it sits on top of all elements */}
+                <defs>
+                  <pattern id="editor-grid-pat" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="0.75"/>
+                  </pattern>
+                </defs>
+                <rect width={MAP_W} height={MAP_H} fill="url(#editor-grid-pat)" style={{ pointerEvents: 'none' }} />
               </svg>
             </div>
           </div>
