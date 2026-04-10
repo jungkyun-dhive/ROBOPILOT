@@ -533,6 +533,10 @@ function RoutePlanning() {
     setEditorDrag(null);
   }, [nogoDrawing]);
 
+  // ── Name helpers (defined early so all functions below can use them) ────────
+  const getSiteName = (site) => siteNameOverrides[site.id] ?? site.name;
+  const getMapName = (m) => mapNameOverrides[m.id] ?? m.name;
+
   const openMapEditor = (siteId, siteName) => {
     const defaultName = `${siteName} 맵 ${userMaps.filter((m) => m.site === siteName).length + 1}`;
     const name = window.prompt('새 맵 이름을 입력하세요', defaultName);
@@ -561,10 +565,13 @@ function RoutePlanning() {
     nextEditorId.current = 1;
   };
 
-  // Open an EXISTING user map for editing (loads its saved polygon/walls/nogoZones)
-  const openExistingMapEditor = (m) => {
+  // Open an EXISTING user map for editing — always loads fresh from userMaps state
+  const openExistingMapEditor = (mapId) => {
+    const m = userMaps.find((um) => um.id === mapId);
+    if (!m) return;
+    const mapName = getMapName(m);
     setActiveEditMapId(m.id);
-    setMapEditor({ siteId: null, siteName: m.site, mapName: getMapName(m) });
+    setMapEditor({ siteId: null, siteName: m.site, mapName });
     setEditorTool('zone');
     setZonePoints(m.polygon || []);
     setZoneClosed(m.polygonClosed || false);
@@ -585,10 +592,6 @@ function RoutePlanning() {
     setWallStart(null); setMousePos(null);
     setNogoDrawing(null); setEditorDrag(null);
   };
-
-  // Helper: get effective site/map name (override takes priority)
-  const getSiteName = (site) => siteNameOverrides[site.id] ?? site.name;
-  const getMapName = (m) => mapNameOverrides[m.id] ?? m.name;
 
   const handleSaveEditName = () => {
     if (!editingName) return;
@@ -909,8 +912,9 @@ function RoutePlanning() {
                       }`}>
                         <div
                           onClick={() => {
-                            if (m.isUserCreated) {
-                              openExistingMapEditor(m);
+                            const isUserMap = userMaps.some((um) => um.id === m.id);
+                            if (isUserMap) {
+                              openExistingMapEditor(m.id);
                             } else {
                               setSelectedMapId(m.id);
                               setWaypoints([]); nextId.current = 1;
