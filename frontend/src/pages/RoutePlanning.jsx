@@ -483,18 +483,12 @@ function RoutePlanning() {
                   {(savedRoutes[m.id] ?? []).map((route) => (
                     <div
                       key={route.id}
-                      className="ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 border-cyan-100 hover:border-cyan-300 hover:bg-gray-50 rounded-r group transition-colors"
+                      onClick={() => handleLoadRoute(route, m.id)}
+                      className="ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50 rounded-r group transition-colors cursor-pointer"
                     >
                       <Navigation2 className="h-3 w-3 text-cyan-400 flex-shrink-0" />
-                      <span className="flex-1 text-xs text-gray-600 truncate">{route.name}</span>
+                      <span className="flex-1 text-xs text-gray-600 truncate group-hover:text-cyan-700">{route.name}</span>
                       <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
-                      <button
-                        title="불러오기"
-                        onClick={(e) => { e.stopPropagation(); handleLoadRoute(route, m.id); }}
-                        className="ml-0.5 p-0.5 text-cyan-400 hover:text-cyan-600 flex-shrink-0"
-                      >
-                        <FolderOpen className="h-3 w-3" />
-                      </button>
                       <button
                         title="삭제"
                         onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(m.id, route.id); }}
