@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
   ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical,
-  Save, FolderOpen, Navigation2
+  FolderOpen, Navigation2
 } from 'lucide-react';
 
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
@@ -209,6 +209,7 @@ function RoutePlanning() {
       return s ? JSON.parse(s) : {};
     } catch { return {}; }
   });
+  const [activeRouteId, setActiveRouteId] = useState(null); // { mapId, routeId }
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
   const canvasRef = useRef(null);
@@ -220,6 +221,23 @@ function RoutePlanning() {
   useEffect(() => {
     localStorage.setItem('robopilot_saved_routes', JSON.stringify(savedRoutes));
   }, [savedRoutes]);
+
+  // Auto-save waypoints to the active route whenever they change
+  useEffect(() => {
+    if (!activeRouteId) return;
+    setSavedRoutes((prev) => {
+      const routes = prev[activeRouteId.mapId] ?? [];
+      if (!routes.some((r) => r.id === activeRouteId.routeId)) return prev;
+      return {
+        ...prev,
+        [activeRouteId.mapId]: routes.map((r) =>
+          r.id === activeRouteId.routeId
+            ? { ...r, waypoints: waypoints.map((wp) => ({ ...wp })), savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+            : r
+        ),
+      };
+    });
+  }, [waypoints, activeRouteId]);
 
   useEffect(() => {
     if (!canvasRef.current || !selectedMapId) return;
@@ -307,29 +325,36 @@ function RoutePlanning() {
     setWaypoints([]); setSelectedWpId(null); nextId.current = 1;
   };
 
-  // ── In-memory save / load ────────────────────────────────────────────────
-  const handleSaveRoute = () => {
-    if (!selectedMapId || waypoints.length < 1) return;
-    const count = (savedRoutes[selectedMapId]?.length ?? 0) + 1;
-    const defaultName = `경로 ${count}`;
-    const name = window.prompt('저장할 경로 이름을 입력하세요', defaultName);
-    if (name === null) return; // cancelled
+  // ── Route management ────────────────────────────────────────────────────
+  const handleCreateRoute = (mapId) => {
+    const defaultName = `경로 ${(savedRoutes[mapId]?.length ?? 0) + 1}`;
+    const name = window.prompt('새 경로 이름을 입력하세요', defaultName);
+    if (name === null) return;
+    const routeId = Date.now();
+    const newRoute = {
+      id: routeId,
+      name: name.trim() || defaultName,
+      waypoints: [],
+      savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    };
     setSavedRoutes((prev) => ({
       ...prev,
-      [selectedMapId]: [...(prev[selectedMapId] ?? []), {
-        id: Date.now(),
-        name: name.trim() || defaultName,
-        waypoints: waypoints.map((wp) => ({ ...wp })),
-        savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      }],
+      [mapId]: [...(prev[mapId] ?? []), newRoute],
     }));
+    setSelectedMapId(mapId);
+    setWaypoints([]);
+    nextId.current = 1;
+    setSelectedWpId(null);
+    setActiveRouteId({ mapId, routeId });
   };
 
   const handleLoadRoute = (route, mapId) => {
     setSelectedMapId(mapId);
-    setWaypoints(route.waypoints.map((wp) => ({ ...wp })));
-    nextId.current = Math.max(...route.waypoints.map((w) => w.id), 0) + 1;
+    const wps = route.waypoints.map((wp) => ({ ...wp }));
+    setWaypoints(wps);
+    nextId.current = wps.length > 0 ? Math.max(...wps.map((w) => w.id)) + 1 : 1;
     setSelectedWpId(null);
+    setActiveRouteId({ mapId, routeId: route.id });
   };
 
   const handleDeleteSavedRoute = (mapId, routeId) => {
@@ -386,11 +411,12 @@ function RoutePlanning() {
           [mapId]: [...(prev[mapId] ?? []), newRoute],
         }));
 
-        // 맵 + 웨이포인트 바로 적용
+        // 맵 + 웨이포인트 바로 적용, 활성 경로로 설정
         setSelectedMapId(mapId);
         setWaypoints(loadedWp);
-        nextId.current = Math.max(...loadedWp.map((w) => w.id), 0) + 1;
+        nextId.current = loadedWp.length > 0 ? Math.max(...loadedWp.map((w) => w.id)) + 1 : 1;
         setSelectedWpId(null);
+        setActiveRouteId({ mapId, routeId: newRoute.id });
       } catch {
         alert('파일을 읽는 중 오류가 발생했습니다.');
       }
@@ -469,25 +495,38 @@ function RoutePlanning() {
               {mapListOpen && maps.map((m) => (
                 <div key={m.id}>
                   {/* Map row */}
-                  <button
-                    onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                      selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
-                    <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
-                  </button>
+                  <div className={`flex items-center px-3 py-2 rounded-lg text-xs transition-colors ${
+                    selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                  }`}>
+                    <button
+                      onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
+                      className="flex-1 text-left min-w-0"
+                    >
+                      <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
+                      <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCreateRoute(m.id); }}
+                      title="새 경로 만들기"
+                      className="ml-1 p-0.5 rounded text-gray-300 hover:text-cyan-500 hover:bg-cyan-100 flex-shrink-0"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
 
                   {/* Saved routes tree under this map */}
                   {(savedRoutes[m.id] ?? []).map((route) => (
                     <div
                       key={route.id}
                       onClick={() => handleLoadRoute(route, m.id)}
-                      className="ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50 rounded-r group transition-colors cursor-pointer"
+                      className={`ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 rounded-r group transition-colors cursor-pointer ${
+                        activeRouteId?.routeId === route.id
+                          ? 'border-cyan-500 bg-cyan-50'
+                          : 'border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50'
+                      }`}
                     >
-                      <Navigation2 className="h-3 w-3 text-cyan-400 flex-shrink-0" />
-                      <span className="flex-1 text-xs text-gray-600 truncate group-hover:text-cyan-700">{route.name}</span>
+                      <Navigation2 className={`h-3 w-3 flex-shrink-0 ${activeRouteId?.routeId === route.id ? 'text-cyan-600' : 'text-cyan-400'}`} />
+                      <span className={`flex-1 text-xs truncate group-hover:text-cyan-700 ${activeRouteId?.routeId === route.id ? 'text-cyan-700 font-medium' : 'text-gray-600'}`}>{route.name}</span>
                       <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
                       <button
                         title="삭제"
@@ -571,10 +610,6 @@ function RoutePlanning() {
             <button onClick={clearAll} disabled={waypoints.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200 disabled:opacity-40 disabled:cursor-not-allowed">
               <RotateCcw className="h-3.5 w-3.5" />초기화
-            </button>
-            <button onClick={handleSaveRoute} disabled={!selectedMapId || waypoints.length < 1}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cyan-700 hover:bg-cyan-50 rounded-lg border border-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed">
-              <Save className="h-3.5 w-3.5" />경로 저장
             </button>
             <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportRoute} />
             <button onClick={() => fileInputRef.current?.click()}
@@ -738,6 +773,11 @@ function RoutePlanning() {
           <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 flex items-center gap-4 text-xs text-slate-400">
             <span>웨이포인트: <strong className="text-slate-200">{waypoints.length}</strong></span>
             <span>총 경로: <strong className="text-slate-200">{getTotalDistance()} m</strong></span>
+            {activeRouteId && (
+              <span className="text-cyan-400">
+                ● 자동저장 중
+              </span>
+            )}
             {selectedWp && (
               <span className="text-orange-400 font-medium">
                 WP-{String(selectedWpIndex + 1).padStart(2, '0')} 선택됨 — 방향 {selectedWp.heading}° | 주황 핸들 드래그: 방향 변경
