@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
   ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical,
-  FolderOpen, Navigation2
+  FolderOpen, Navigation2, Square, Minus, Layers, Check, X
 } from 'lucide-react';
 import { siteApi } from '../utils/api';
 
@@ -16,6 +16,17 @@ const MOCK_MAPS = [
 
 const MAP_W = 760;
 const MAP_H = 520;
+
+// ─── Map editor background (black + white grid only) ────────────────────────
+function drawEditorBg(ctx) {
+  const G = 20;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, MAP_W, MAP_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 0.75;
+  for (let x = 0; x <= MAP_W; x += G) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_H); ctx.stroke(); }
+  for (let y = 0; y <= MAP_H; y += G) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_W, y); ctx.stroke(); }
+}
 
 // ─── LiDAR map rendering — Vector Space style ────────────────────────────────
 function drawLidarMap(ctx, mapId) {
@@ -211,6 +222,24 @@ function RoutePlanning() {
     } catch { return {}; }
   });
   const [activeRouteId, setActiveRouteId] = useState(null); // { mapId, routeId }
+
+  // ── Map editor state ──────────────────────────────────────────────────────
+  const [mapEditor, setMapEditor] = useState(null); // null | {siteId, siteName, mapName}
+  const [editorTool, setEditorTool] = useState('zone'); // 'zone' | 'wall' | 'nogozone'
+  const [zonePoints, setZonePoints] = useState([]); // [{id,x,y}]
+  const [zoneClosed, setZoneClosed] = useState(false);
+  const [walls, setWalls] = useState([]); // [{id,x1,y1,x2,y2}]
+  const [nogoZones, setNogoZones] = useState([]); // [{id,x,y,w,h}]
+  const [editorDrag, setEditorDrag] = useState(null);
+  const [wallStart, setWallStart] = useState(null); // pending first click {x,y}
+  const [nogoDrawing, setNogoDrawing] = useState(null); // {x0,y0,x1,y1} while dragging
+  const [mousePos, setMousePos] = useState(null);
+  const [selectedEditorId, setSelectedEditorId] = useState(null);
+  const [dragZPId, setDragZPId] = useState(null); // drag-reorder zone point id
+  const editorCanvasRef = useRef(null);
+  const editorSvgRef = useRef(null);
+  const nextEditorId = useRef(1);
+
   const [zoom, setZoom] = useState(1);
   const [sites, setSites] = useState([]);
   const [sitesLoading, setSitesLoading] = useState(true);
@@ -298,6 +327,119 @@ function RoutePlanning() {
   const isSiteOpen = (siteId) => openSites[siteId] !== false;
   const toggleSite = (siteId) =>
     setOpenSites((prev) => ({ ...prev, [siteId]: !isSiteOpen(siteId) }));
+
+  // Draw editor background whenever editor opens
+  useEffect(() => {
+    if (!mapEditor || !editorCanvasRef.current) return;
+    drawEditorBg(editorCanvasRef.current.getContext('2d'));
+  }, [mapEditor]);
+
+  const editorCoords = useCallback((e) => {
+    const rect = editorSvgRef.current.getBoundingClientRect();
+    return {
+      x: Math.round((e.clientX - rect.left) / zoom),
+      y: Math.round((e.clientY - rect.top) / zoom),
+    };
+  }, [zoom]);
+
+  const handleEditorMouseDown = useCallback((e) => {
+    if (!editorSvgRef.current) return;
+    const isBg = e.target === editorSvgRef.current || e.target.dataset.bg === 'true';
+    const { x, y } = editorCoords(e);
+
+    if (editorTool === 'nogozone' && isBg) {
+      setNogoDrawing({ x0: x, y0: y, x1: x, y1: y });
+    }
+  }, [editorTool, editorCoords]);
+
+  const handleEditorClick = useCallback((e) => {
+    if (!editorSvgRef.current) return;
+    const isBg = e.target === editorSvgRef.current || e.target.dataset.bg === 'true';
+    if (!isBg) return;
+    const { x, y } = editorCoords(e);
+
+    if (editorTool === 'zone' && !zoneClosed) {
+      if (zonePoints.length >= 3) {
+        const fp = zonePoints[0];
+        if (Math.hypot(x - fp.x, y - fp.y) < 14) { setZoneClosed(true); return; }
+      }
+      setZonePoints((prev) => [...prev, { id: nextEditorId.current++, x, y }]);
+    } else if (editorTool === 'wall') {
+      if (!wallStart) {
+        setWallStart({ x, y });
+      } else {
+        setWalls((prev) => [...prev, { id: nextEditorId.current++, x1: wallStart.x, y1: wallStart.y, x2: x, y2: y }]);
+        setWallStart(null);
+        setMousePos(null);
+      }
+    }
+  }, [editorTool, zonePoints, zoneClosed, wallStart, editorCoords]);
+
+  const handleEditorMouseMove = useCallback((e) => {
+    if (!editorSvgRef.current) return;
+    const { x, y } = editorCoords(e);
+    setMousePos({ x, y });
+
+    if (nogoDrawing) {
+      setNogoDrawing((d) => d ? { ...d, x1: x, y1: y } : null);
+      return;
+    }
+    if (!editorDrag) return;
+    const cx = Math.max(0, Math.min(MAP_W, x));
+    const cy = Math.max(0, Math.min(MAP_H, y));
+
+    if (editorDrag.type === 'zonePoint') {
+      setZonePoints((prev) => prev.map((p) => p.id === editorDrag.id ? { ...p, x: cx, y: cy } : p));
+    } else if (editorDrag.type === 'wallPt1') {
+      setWalls((prev) => prev.map((w) => w.id === editorDrag.id ? { ...w, x1: cx, y1: cy } : w));
+    } else if (editorDrag.type === 'wallPt2') {
+      setWalls((prev) => prev.map((w) => w.id === editorDrag.id ? { ...w, x2: cx, y2: cy } : w));
+    } else if (editorDrag.type === 'nogoMove') {
+      setNogoZones((prev) => prev.map((n) => n.id === editorDrag.id
+        ? { ...n, x: cx - editorDrag.offX, y: cy - editorDrag.offY } : n));
+    } else if (editorDrag.type === 'nogoResize') {
+      setNogoZones((prev) => prev.map((n) => {
+        if (n.id !== editorDrag.id) return n;
+        const c = editorDrag.corner;
+        let { x: nx, y: ny, w: nw, h: nh } = n;
+        if (c === 'br') { nw = Math.max(10, cx - nx); nh = Math.max(10, cy - ny); }
+        else if (c === 'bl') { const r = nx + nw; nw = Math.max(10, r - cx); nx = cx; nh = Math.max(10, cy - ny); }
+        else if (c === 'tr') { nw = Math.max(10, cx - nx); const b = ny + nh; nh = Math.max(10, b - cy); ny = cy; }
+        else { const r = nx + nw; const b = ny + nh; nw = Math.max(10, r - cx); nx = cx; nh = Math.max(10, b - cy); ny = cy; }
+        return { ...n, x: nx, y: ny, w: nw, h: nh };
+      }));
+    }
+  }, [editorCoords, editorDrag, nogoDrawing]);
+
+  const handleEditorMouseUp = useCallback(() => {
+    if (nogoDrawing) {
+      const { x0, y0, x1, y1 } = nogoDrawing;
+      const rx = Math.min(x0, x1), ry = Math.min(y0, y1);
+      const rw = Math.abs(x1 - x0), rh = Math.abs(y1 - y0);
+      if (rw > 5 && rh > 5) {
+        setNogoZones((prev) => [...prev, { id: nextEditorId.current++, x: rx, y: ry, w: rw, h: rh }]);
+      }
+      setNogoDrawing(null);
+    }
+    setEditorDrag(null);
+  }, [nogoDrawing]);
+
+  const openMapEditor = (siteId, siteName) => {
+    const name = window.prompt('새 맵 이름을 입력하세요', `${siteName} 맵`);
+    if (name === null) return;
+    setMapEditor({ siteId, siteName, mapName: name.trim() || `${siteName} 맵` });
+    setEditorTool('zone');
+    setZonePoints([]); setZoneClosed(false);
+    setWalls([]); setNogoZones([]);
+    setWallStart(null); setMousePos(null); setSelectedEditorId(null);
+    nextEditorId.current = 1;
+  };
+
+  const closeMapEditor = () => {
+    setMapEditor(null);
+    setWallStart(null); setMousePos(null);
+    setNogoDrawing(null); setEditorDrag(null);
+  };
 
   const svgCoords = useCallback((e) => {
     const rect = svgRef.current.getBoundingClientRect();
@@ -540,18 +682,24 @@ function RoutePlanning() {
           ) : mapsBySite.map(({ site, maps }) => (
             <div key={site.id}>
               {/* Site header row */}
-              <button
-                onClick={() => toggleSite(site.id)}
-                className="w-full flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded transition-colors"
-              >
-                {isSiteOpen(site.id)
-                  ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
-                  : <ChevronRight className="h-3 w-3 flex-shrink-0" />}
-                <span className="flex-1 text-left truncate normal-case">{site.name}</span>
-                {maps.length === 0 && (
-                  <span className="text-gray-300 text-xs font-normal normal-case flex-shrink-0">맵 없음</span>
-                )}
-              </button>
+              <div className="flex items-center">
+                <button
+                  onClick={() => toggleSite(site.id)}
+                  className="flex-1 flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded transition-colors min-w-0"
+                >
+                  {isSiteOpen(site.id)
+                    ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                    : <ChevronRight className="h-3 w-3 flex-shrink-0" />}
+                  <span className="flex-1 text-left truncate normal-case">{site.name}</span>
+                </button>
+                <button
+                  onClick={() => openMapEditor(site.id, site.name)}
+                  title="새 맵 추가"
+                  className="p-0.5 rounded text-gray-300 hover:text-green-500 hover:bg-green-50 flex-shrink-0 mr-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
               {/* Maps + routes under this site */}
               {isSiteOpen(site.id) && (
@@ -622,6 +770,199 @@ function RoutePlanning() {
       {/* ── Center: canvas + toolbar ─────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
+        {/* ══ MAP EDITOR MODE ══════════════════════════════════════════════════ */}
+        {mapEditor ? (<>
+          {/* Editor Toolbar */}
+          <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-800 mr-1">{mapEditor.mapName}</span>
+            <span className="text-xs text-gray-400">{mapEditor.siteName}</span>
+
+            {/* Tool tabs */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 ml-2">
+              {[
+                { key: 'zone',     icon: <Layers className="h-3.5 w-3.5" />, label: '전체구역' },
+                { key: 'wall',     icon: <Minus className="h-3.5 w-3.5" />,  label: '벽 추가' },
+                { key: 'nogozone', icon: <Square className="h-3.5 w-3.5" />, label: '주행금지구역' },
+              ].map(({ key, icon, label }) => (
+                <button key={key}
+                  onClick={() => { setEditorTool(key); setWallStart(null); setMousePos(null); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    editorTool === key ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {icon}{label}
+                </button>
+              ))}
+            </div>
+
+            {/* Zoom */}
+            <div className="flex items-center gap-1">
+              <button onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ZoomIn className="h-4 w-4" /></button>
+              <span className="text-xs text-gray-500 w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(1)))} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><ZoomOut className="h-4 w-4" /></button>
+              <button onClick={() => setZoom(1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><Maximize2 className="h-4 w-4" /></button>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              {editorTool === 'zone' && zoneClosed && (
+                <span className="text-xs text-green-600 font-medium">● 구역 완성됨</span>
+              )}
+              {editorTool === 'wall' && wallStart && (
+                <span className="text-xs text-yellow-600 font-medium">● 끝점을 클릭하세요</span>
+              )}
+              <button onClick={closeMapEditor}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-300">
+                <X className="h-3.5 w-3.5" />편집 종료
+              </button>
+            </div>
+          </div>
+
+          {/* Editor Canvas */}
+          <div className="flex-1 overflow-auto p-3 bg-slate-900">
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', position: 'relative', width: MAP_W, height: MAP_H, flexShrink: 0 }}>
+              <canvas ref={editorCanvasRef} width={MAP_W} height={MAP_H}
+                style={{ display: 'block', borderRadius: 6, boxShadow: '0 0 0 1px rgba(0,200,220,0.25), 0 6px 32px rgba(0,0,0,0.6)' }}
+              />
+              <svg ref={editorSvgRef} width={MAP_W} height={MAP_H}
+                className="absolute inset-0"
+                style={{ borderRadius: 6, cursor: editorTool === 'nogozone' ? 'crosshair' : editorTool === 'zone' ? 'crosshair' : 'crosshair' }}
+                onClick={handleEditorClick}
+                onMouseDown={handleEditorMouseDown}
+                onMouseMove={handleEditorMouseMove}
+                onMouseUp={handleEditorMouseUp}
+                onMouseLeave={handleEditorMouseUp}
+              >
+                <rect width={MAP_W} height={MAP_H} fill="transparent" data-bg="true" />
+
+                {/* No-go zones */}
+                {nogoZones.map((n) => {
+                  const isSel = selectedEditorId === n.id;
+                  return (
+                    <g key={n.id}>
+                      <rect x={n.x} y={n.y} width={n.w} height={n.h}
+                        fill="#000" stroke={isSel ? '#f97316' : 'rgba(0,231,255,0.5)'} strokeWidth={isSel ? 2 : 1}
+                        style={{ cursor: 'move' }}
+                        onMouseDown={(e) => { e.stopPropagation(); setSelectedEditorId(n.id); setEditorDrag({ type: 'nogoMove', id: n.id, offX: editorCoords(e).x - n.x, offY: editorCoords(e).y - n.y }); }}
+                      />
+                      {isSel && [['tl',n.x,n.y],['tr',n.x+n.w,n.y],['bl',n.x,n.y+n.h],['br',n.x+n.w,n.y+n.h]].map(([c,cx,cy]) => (
+                        <circle key={c} cx={cx} cy={cy} r={5} fill="#f97316" stroke="#fff" strokeWidth={1.5}
+                          style={{ cursor: 'nwse-resize' }}
+                          onMouseDown={(e) => { e.stopPropagation(); setEditorDrag({ type: 'nogoResize', id: n.id, corner: c }); }}
+                        />
+                      ))}
+                      {isSel && (
+                        <g onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setNogoZones((prev) => prev.filter((z) => z.id !== n.id)); setSelectedEditorId(null); }}>
+                          <rect x={n.x+n.w-14} y={n.y-14} width={14} height={14} rx={2} fill="#ef4444" style={{ cursor: 'pointer' }} />
+                          <text x={n.x+n.w-7} y={n.y-4} textAnchor="middle" fill="#fff" fontSize={10} style={{ pointerEvents: 'none' }}>×</text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* No-go zone in progress */}
+                {nogoDrawing && (() => {
+                  const rx = Math.min(nogoDrawing.x0, nogoDrawing.x1);
+                  const ry = Math.min(nogoDrawing.y0, nogoDrawing.y1);
+                  const rw = Math.abs(nogoDrawing.x1 - nogoDrawing.x0);
+                  const rh = Math.abs(nogoDrawing.y1 - nogoDrawing.y0);
+                  return <rect x={rx} y={ry} width={rw} height={rh} fill="rgba(0,0,0,0.7)" stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 2" style={{ pointerEvents: 'none' }} />;
+                })()}
+
+                {/* Walls */}
+                {walls.map((w) => {
+                  const isSel = selectedEditorId === w.id;
+                  return (
+                    <g key={w.id}>
+                      <line x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2}
+                        stroke={isSel ? '#f97316' : 'rgba(0,231,255,0.85)'} strokeWidth={isSel ? 3 : 2}
+                        strokeLinecap="round" style={{ cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedEditorId(w.id); }}
+                      />
+                      {[['wallPt1',w.x1,w.y1],['wallPt2',w.x2,w.y2]].map(([type,cx,cy]) => (
+                        <circle key={type} cx={cx} cy={cy} r={6} fill={isSel ? '#f97316' : '#00e7ff'} stroke="#fff" strokeWidth={1.5}
+                          style={{ cursor: 'grab' }}
+                          onMouseDown={(e) => { e.stopPropagation(); setSelectedEditorId(w.id); setEditorDrag({ type, id: w.id }); }}
+                        />
+                      ))}
+                      {isSel && (
+                        <g onClick={(e) => { e.stopPropagation(); setWalls((prev) => prev.filter((wl) => wl.id !== w.id)); setSelectedEditorId(null); }}>
+                          <rect x={(w.x1+w.x2)/2-7} y={(w.y1+w.y2)/2-7} width={14} height={14} rx={2} fill="#ef4444" style={{ cursor: 'pointer' }} />
+                          <text x={(w.x1+w.x2)/2} y={(w.y1+w.y2)/2+4} textAnchor="middle" fill="#fff" fontSize={10} style={{ pointerEvents: 'none' }}>×</text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Wall preview while drawing */}
+                {editorTool === 'wall' && wallStart && mousePos && (
+                  <line x1={wallStart.x} y1={wallStart.y} x2={mousePos.x} y2={mousePos.y}
+                    stroke="rgba(251,146,60,0.7)" strokeWidth={2} strokeDasharray="6 3"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+
+                {/* Zone polygon */}
+                {zonePoints.length >= 2 && (
+                  <polyline
+                    points={zonePoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                    fill="none" stroke="#00e7ff" strokeWidth={2} strokeLinejoin="round"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+                {zoneClosed && zonePoints.length >= 3 && (
+                  <>
+                    <polygon
+                      points={zonePoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                      fill="rgba(22,90,114,0.55)" stroke="#00e7ff" strokeWidth={2}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </>
+                )}
+                {/* Preview line to cursor while placing zone points */}
+                {editorTool === 'zone' && !zoneClosed && zonePoints.length > 0 && mousePos && (
+                  <line x1={zonePoints[zonePoints.length-1].x} y1={zonePoints[zonePoints.length-1].y}
+                    x2={mousePos.x} y2={mousePos.y}
+                    stroke="rgba(0,231,255,0.5)" strokeWidth={1.5} strokeDasharray="5 3"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
+
+                {/* Zone points */}
+                {zonePoints.map((p, i) => {
+                  const isFirst = i === 0;
+                  const canClose = isFirst && zonePoints.length >= 3 && !zoneClosed;
+                  return (
+                    <g key={p.id} transform={`translate(${p.x},${p.y})`}>
+                      {canClose && mousePos && Math.hypot(mousePos.x - p.x, mousePos.y - p.y) < 20 && (
+                        <circle r={14} fill="rgba(0,231,255,0.2)" stroke="#00e7ff" strokeWidth={1.5} strokeDasharray="3 2" style={{ pointerEvents: 'none' }} />
+                      )}
+                      <circle r={6}
+                        fill={isFirst ? '#00d07a' : '#00e7ff'}
+                        stroke="#fff" strokeWidth={1.5}
+                        style={{ cursor: 'grab' }}
+                        onMouseDown={(e) => { e.stopPropagation(); setEditorDrag({ type: 'zonePoint', id: p.id }); }}
+                      />
+                      <text textAnchor="middle" y={-10} fill="#fff" fontSize={9} style={{ pointerEvents: 'none' }}>{i + 1}</text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+
+          {/* Editor status bar */}
+          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 flex items-center gap-4 text-xs text-slate-400">
+            {editorTool === 'zone' && !zoneClosed && <span>클릭: 꼭짓점 추가 | 첫 번째 점 클릭: 구역 완성</span>}
+            {editorTool === 'zone' && zoneClosed && <span className="text-green-400">구역 완성 — 점 드래그로 조정 가능</span>}
+            {editorTool === 'wall' && !wallStart && <span>클릭: 벽 시작점 설정</span>}
+            {editorTool === 'wall' && wallStart && <span className="text-yellow-400">클릭: 벽 끝점 설정 | 벽 수: {walls.length + 1}</span>}
+            {editorTool === 'nogozone' && <span>드래그: 주행금지구역 그리기 | 완성 후 모서리 드래그: 크기 조정</span>}
+            <span className="ml-auto">구역점: {zonePoints.length} | 벽: {walls.length} | 금지구역: {nogoZones.length}</span>
+          </div>
+        </>) : (
+        <>
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-800 mr-1">
@@ -858,10 +1199,120 @@ function RoutePlanning() {
             )}
           </div>
         )}
+        </>
+        )} {/* end mapEditor ternary */}
       </div>
 
-      {/* ── Right: waypoint list ─────────────────────────── */}
+      {/* ── Right panel ─────────────────────────────────── */}
       <div className="w-60 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
+
+      {mapEditor ? (
+        /* ── Map editor right panel ── */
+        <>
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-800">
+              {editorTool === 'zone' ? '구역 꼭짓점 목록' : editorTool === 'wall' ? '벽 목록' : '주행금지구역 목록'}
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {editorTool === 'zone' && (
+              zonePoints.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center mt-6">캔버스를 클릭하여 꼭짓점 추가</p>
+              ) : zonePoints.map((p, i) => (
+                <div key={p.id}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragZPId(p.id); }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!dragZPId || dragZPId === p.id) return;
+                    setZonePoints((prev) => {
+                      const items = [...prev];
+                      const fi = items.findIndex((z) => z.id === dragZPId);
+                      const ti = items.findIndex((z) => z.id === p.id);
+                      const [m] = items.splice(fi, 1);
+                      items.splice(ti, 0, m);
+                      return items;
+                    });
+                    setDragZPId(null);
+                  }}
+                  onDragEnd={() => setDragZPId(null)}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors border ${
+                    dragZPId === p.id ? 'opacity-40' : ''
+                  } border-transparent hover:bg-gray-50`}
+                >
+                  <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0 cursor-grab" />
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                    style={{ backgroundColor: i === 0 ? '#00d07a' : '#00e7ff' }}>{i + 1}</div>
+                  <span className="flex-1 text-gray-600">{(p.x*0.05).toFixed(1)}m, {(p.y*0.05).toFixed(1)}m</span>
+                  <button onClick={() => { setZonePoints((prev) => prev.filter((z) => z.id !== p.id)); if (zonePoints.length <= 3) setZoneClosed(false); }}
+                    className="p-0.5 text-gray-300 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                </div>
+              ))
+            )}
+            {editorTool === 'zone' && zoneClosed && (
+              <div className="mx-2 mt-1 px-2 py-1 bg-green-50 rounded text-xs text-green-600 flex items-center gap-1">
+                <Check className="h-3 w-3" />구역 완성
+              </div>
+            )}
+            {editorTool === 'wall' && (
+              walls.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center mt-6">캔버스를 클릭하여 벽 추가</p>
+              ) : walls.map((w, i) => (
+                <div key={w.id}
+                  onClick={() => setSelectedEditorId(w.id)}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border ${
+                    selectedEditorId === w.id ? 'bg-cyan-50 border-cyan-200' : 'border-transparent hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-white flex-shrink-0 bg-cyan-500">{i + 1}</div>
+                  <div className="flex-1 text-gray-600 text-xs leading-tight">
+                    <div>({(w.x1*0.05).toFixed(1)},{(w.y1*0.05).toFixed(1)})</div>
+                    <div>→ ({(w.x2*0.05).toFixed(1)},{(w.y2*0.05).toFixed(1)})</div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); setWalls((prev) => prev.filter((wl) => wl.id !== w.id)); if (selectedEditorId === w.id) setSelectedEditorId(null); }}
+                    className="p-0.5 text-gray-300 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                </div>
+              ))
+            )}
+            {editorTool === 'nogozone' && (
+              nogoZones.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center mt-6">캔버스를 드래그하여 금지구역 추가</p>
+              ) : nogoZones.map((n, i) => (
+                <div key={n.id}
+                  onClick={() => setSelectedEditorId(n.id)}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors border ${
+                    selectedEditorId === n.id ? 'bg-orange-50 border-orange-200' : 'border-transparent hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-white flex-shrink-0 bg-gray-700">{i + 1}</div>
+                  <div className="flex-1 text-gray-600 text-xs leading-tight">
+                    <div>{(n.w*0.05).toFixed(1)}×{(n.h*0.05).toFixed(1)} m</div>
+                    <div className="text-gray-400">@{(n.x*0.05).toFixed(1)},{(n.y*0.05).toFixed(1)}</div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); setNogoZones((prev) => prev.filter((z) => z.id !== n.id)); if (selectedEditorId === n.id) setSelectedEditorId(null); }}
+                    className="p-0.5 text-gray-300 hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
+                </div>
+              ))
+            )}
+          </div>
+          {/* Reset button */}
+          <div className="border-t border-gray-200 p-3">
+            <button
+              onClick={() => {
+                if (editorTool === 'zone') { setZonePoints([]); setZoneClosed(false); }
+                else if (editorTool === 'wall') setWalls([]);
+                else setNogoZones([]);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200"
+            >
+              <RotateCcw className="h-3 w-3" />현재 탭 초기화
+            </button>
+          </div>
+        </>
+      ) : (
+        /* ── Route planning right panel ── */
+        <>
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-800">웨이포인트 목록</h2>
         </div>
@@ -1058,6 +1509,8 @@ function RoutePlanning() {
             <div className="text-xs text-gray-400">(기준 속도: 0.5 m/s)</div>
           </div>
         )}
+        </> /* end route planning right panel */
+      )} {/* end mapEditor ternary */}
       </div>
     </div>
   );
