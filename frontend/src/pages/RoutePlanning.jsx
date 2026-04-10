@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
   ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical,
   FolderOpen, Navigation2
 } from 'lucide-react';
+import { siteApi } from '../utils/api';
 
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
 const MOCK_MAPS = [
@@ -211,7 +212,9 @@ function RoutePlanning() {
   });
   const [activeRouteId, setActiveRouteId] = useState(null); // { mapId, routeId }
   const [zoom, setZoom] = useState(1);
-  const [mapListOpen, setMapListOpen] = useState(true);
+  const [sites, setSites] = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
+  const [openSites, setOpenSites] = useState({}); // siteId → false means collapsed (default open)
   const canvasRef = useRef(null);
   const svgRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -244,6 +247,57 @@ function RoutePlanning() {
     const ctx = canvasRef.current.getContext('2d');
     drawLidarMap(ctx, selectedMapId);
   }, [selectedMapId]);
+
+  // Load sites from API
+  useEffect(() => {
+    siteApi.getAll()
+      .then((data) => setSites(data || []))
+      .catch(() => setSites([]))
+      .finally(() => setSitesLoading(false));
+  }, []);
+
+  // Group MOCK_MAPS under API sites; unmatched maps go under their own site string
+  const mapsBySite = useMemo(() => {
+    const match = (map, site) => {
+      const s = map.site.toLowerCase();
+      const sn = site.name.toLowerCase();
+      const sl = (site.location || '').toLowerCase();
+      return s === sn || s === sl || sn.includes(s) || sl.includes(s) || s.includes(sn);
+    };
+
+    if (sites.length === 0) {
+      // Fallback: group by map.site string
+      const groups = {};
+      for (const m of MOCK_MAPS) {
+        (groups[m.site] = groups[m.site] || []).push(m);
+      }
+      return Object.entries(groups).map(([name, maps]) => ({
+        site: { id: name, name, location: '' },
+        maps,
+      }));
+    }
+
+    const assignedIds = new Set();
+    const result = sites.map((site) => {
+      const maps = MOCK_MAPS.filter((m) => match(m, site));
+      maps.forEach((m) => assignedIds.add(m.id));
+      return { site, maps };
+    });
+
+    // Unmatched maps grouped by their site string
+    const unmatched = MOCK_MAPS.filter((m) => !assignedIds.has(m.id));
+    const extra = {};
+    for (const m of unmatched) (extra[m.site] = extra[m.site] || []).push(m);
+    for (const [name, maps] of Object.entries(extra)) {
+      result.push({ site: { id: `_extra_${name}`, name, location: '' }, maps });
+    }
+
+    return result;
+  }, [sites]);
+
+  const isSiteOpen = (siteId) => openSites[siteId] !== false;
+  const toggleSite = (siteId) =>
+    setOpenSites((prev) => ({ ...prev, [siteId]: !isSiteOpen(siteId) }));
 
   const svgCoords = useCallback((e) => {
     const rect = svgRef.current.getBoundingClientRect();
@@ -473,72 +527,86 @@ function RoutePlanning() {
   return (
     <div className="h-full flex bg-gray-100 overflow-hidden">
 
-      {/* ── Left: map list ──────────────────────────────── */}
+      {/* ── Left: site & map tree ───────────────────────── */}
       <div className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-            <Map className="h-4 w-4 text-cyan-500" />LiDAR 맵 목록
+            <Map className="h-4 w-4 text-cyan-500" />사이트 맵 &amp; 경로 계획
           </h2>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {Object.entries(
-            MOCK_MAPS.reduce((acc, m) => { (acc[m.site] = acc[m.site] || []).push(m); return acc; }, {})
-          ).map(([site, maps]) => (
-            <div key={site}>
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {sitesLoading ? (
+            <div className="text-xs text-gray-400 text-center py-6">로딩 중...</div>
+          ) : mapsBySite.map(({ site, maps }) => (
+            <div key={site.id}>
+              {/* Site header row */}
               <button
-                onClick={() => setMapListOpen((v) => !v)}
-                className="w-full flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide hover:bg-gray-50 rounded"
+                onClick={() => toggleSite(site.id)}
+                className="w-full flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded transition-colors"
               >
-                {mapListOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                {site}
+                {isSiteOpen(site.id)
+                  ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                  : <ChevronRight className="h-3 w-3 flex-shrink-0" />}
+                <span className="flex-1 text-left truncate normal-case">{site.name}</span>
+                {maps.length === 0 && (
+                  <span className="text-gray-300 text-xs font-normal normal-case flex-shrink-0">맵 없음</span>
+                )}
               </button>
-              {mapListOpen && maps.map((m) => (
-                <div key={m.id}>
-                  {/* Map row */}
-                  <div className={`flex items-center px-3 py-2 rounded-lg text-xs transition-colors ${
-                    selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-                  }`}>
-                    <button
-                      onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
-                      className="flex-1 text-left min-w-0"
-                    >
-                      <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
-                      <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCreateRoute(m.id); }}
-                      title="새 경로 만들기"
-                      className="ml-1 p-0.5 rounded text-gray-300 hover:text-cyan-500 hover:bg-cyan-100 flex-shrink-0"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
 
-                  {/* Saved routes tree under this map */}
-                  {(savedRoutes[m.id] ?? []).map((route) => (
-                    <div
-                      key={route.id}
-                      onClick={() => handleLoadRoute(route, m.id)}
-                      className={`ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 rounded-r group transition-colors cursor-pointer ${
-                        activeRouteId?.routeId === route.id
-                          ? 'border-cyan-500 bg-cyan-50'
-                          : 'border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50'
-                      }`}
-                    >
-                      <Navigation2 className={`h-3 w-3 flex-shrink-0 ${activeRouteId?.routeId === route.id ? 'text-cyan-600' : 'text-cyan-400'}`} />
-                      <span className={`flex-1 text-xs truncate group-hover:text-cyan-700 ${activeRouteId?.routeId === route.id ? 'text-cyan-700 font-medium' : 'text-gray-600'}`}>{route.name}</span>
-                      <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
-                      <button
-                        title="삭제"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(m.id, route.id); }}
-                        className="p-0.5 text-gray-300 hover:text-red-500 flex-shrink-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+              {/* Maps + routes under this site */}
+              {isSiteOpen(site.id) && (
+                maps.length === 0 ? (
+                  <p className="px-4 py-1 text-xs text-gray-300 italic">등록된 맵이 없습니다</p>
+                ) : (
+                  maps.map((m) => (
+                    <div key={m.id}>
+                      {/* Map row */}
+                      <div className={`flex items-center px-3 py-2 rounded-lg text-xs transition-colors ${
+                        selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                      }`}>
+                        <button
+                          onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
+                          className="flex-1 text-left min-w-0"
+                        >
+                          <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
+                          <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleCreateRoute(m.id); }}
+                          title="새 경로 만들기"
+                          className="ml-1 p-0.5 rounded text-gray-300 hover:text-cyan-500 hover:bg-cyan-100 flex-shrink-0"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Saved routes tree under this map */}
+                      {(savedRoutes[m.id] ?? []).map((route) => (
+                        <div
+                          key={route.id}
+                          onClick={() => handleLoadRoute(route, m.id)}
+                          className={`ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 rounded-r group transition-colors cursor-pointer ${
+                            activeRouteId?.routeId === route.id
+                              ? 'border-cyan-500 bg-cyan-50'
+                              : 'border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50'
+                          }`}
+                        >
+                          <Navigation2 className={`h-3 w-3 flex-shrink-0 ${activeRouteId?.routeId === route.id ? 'text-cyan-600' : 'text-cyan-400'}`} />
+                          <span className={`flex-1 text-xs truncate group-hover:text-cyan-700 ${activeRouteId?.routeId === route.id ? 'text-cyan-700 font-medium' : 'text-gray-600'}`}>{route.name}</span>
+                          <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
+                          <button
+                            title="삭제"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(m.id, route.id); }}
+                            className="p-0.5 text-gray-300 hover:text-red-500 flex-shrink-0"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ))}
+                  ))
+                )
+              )}
             </div>
           ))}
         </div>
