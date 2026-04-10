@@ -22,9 +22,9 @@ function drawLidarMap(ctx, mapId) {
   const G = 20; // 1 m = 20 px  (0.05 m/px)
 
   // Color theme
-  const GRD = 'rgba(255,255,255,0.18)'; // 1 m grid lines (white, subtle)
-  const WO  = '#3de8ff';   // outer boundary (bright cyan)
-  const WI  = '#00c8dc';   // inner walls
+  const GRD = 'rgba(255,255,255,0.5)'; // 1 m grid lines (white 50% opacity)
+  const WO  = '#00e7ff';   // outer boundary
+  const WI  = 'rgba(0,231,255,0.7)';   // inner walls
   const OBS = '#020c14';   // obstacles / equipment
 
   // ── Black background ─────────────────────────────────────────────────────────
@@ -32,13 +32,13 @@ function drawLidarMap(ctx, mapId) {
   ctx.fillRect(0, 0, w, h);
 
   // ── Draw helpers ─────────────────────────────────────────────────────────────
-  // poly: semi-transparent inside, black outside, then grid drawn on top of both
+  // poly: #165a72 fill inside, black outside. Grid is drawn separately at the very end.
   const poly = (pts) => {
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(10, 40, 55, 0.52)';
+    ctx.fillStyle = '#165a72';
     ctx.fill();
     // Black outside using even-odd
     ctx.beginPath();
@@ -48,10 +48,6 @@ function drawLidarMap(ctx, mapId) {
     ctx.closePath();
     ctx.fillStyle = '#000';
     ctx.fill('evenodd');
-    // 1m grid drawn after fills → visible across entire canvas (inside + outside)
-    ctx.strokeStyle = GRD; ctx.lineWidth = 0.5;
-    for (let x = 0; x <= w; x += G) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
-    for (let y = 0; y <= h; y += G) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
   };
 
   // Outer wall segment (bright cyan) — skip calling for passage openings
@@ -167,6 +163,11 @@ function drawLidarMap(ctx, mapId) {
   ctx.fillStyle = '#7fd8e8';
   ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText('5 m', sx + 50, sy + 14);
+
+  // ── 1m grid — drawn last so it appears above all map layers ─────────────────
+  ctx.strokeStyle = GRD; ctx.lineWidth = 0.75;
+  for (let x = 0; x <= w; x += G) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += G) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
