@@ -230,7 +230,7 @@ function RoutePlanning() {
     setWaypoints((prev) => {
       const prev_wp = prev[prev.length - 1];
       const heading = prev_wp ? calcHeading(prev_wp.x, prev_wp.y, x, y) : 0;
-      return [...prev, { id: nextId.current++, x, y, heading }];
+      return [...prev, { id: nextId.current++, x, y, heading, waitSec: 0, posture: 'normal' }];
     });
   }, [tool, svgCoords]);
 
@@ -304,6 +304,8 @@ function RoutePlanning() {
         x_px: Math.round(wp.x), y_px: Math.round(wp.y),
         x_m: +(wp.x * 0.05).toFixed(2), y_m: +(wp.y * 0.05).toFixed(2),
         heading_deg: wp.heading,
+        wait_sec: wp.waitSec ?? 0,
+        posture: wp.posture ?? 'normal',
       })),
       totalDistance_m: getTotalDistance(),
       createdAt: new Date().toISOString(),
@@ -669,6 +671,18 @@ function RoutePlanning() {
                     <div className="text-xs text-gray-400">
                       {(wp.x * 0.05).toFixed(1)}m, {(wp.y * 0.05).toFixed(1)}m
                     </div>
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      {(wp.waitSec ?? 0) > 0 && (
+                        <span className="text-xs bg-blue-50 text-blue-600 px-1 rounded">
+                          {wp.waitSec}s
+                        </span>
+                      )}
+                      {(wp.posture ?? 'normal') !== 'normal' && (
+                        <span className="text-xs bg-purple-50 text-purple-600 px-1 rounded">
+                          {{ tilt: '기울이기', sit: '앉기' }[wp.posture]}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {/* Heading compass indicator */}
                   <div className="flex flex-col items-center gap-0.5">
@@ -693,27 +707,87 @@ function RoutePlanning() {
           )}
         </div>
 
-        {/* Selected WP heading editor */}
+        {/* Selected WP detail editor */}
         {selectedWp && (
-          <div className="border-t border-gray-200 p-3">
-            <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
-              <RotateCw className="h-3.5 w-3.5 text-orange-400" />
-              WP-{String(selectedWpIndex + 1).padStart(2, '0')} 방향 설정
+          <div className="border-t border-gray-200 p-3 space-y-3">
+
+            {/* 방향 */}
+            <div>
+              <div className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
+                <RotateCw className="h-3.5 w-3.5 text-orange-400" />
+                방향
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range" min={0} max={359}
+                  value={selectedWp.heading}
+                  onChange={(e) => setWaypoints((prev) =>
+                    prev.map((w) => w.id === selectedWp.id ? { ...w, heading: Number(e.target.value) } : w)
+                  )}
+                  className="flex-1 h-1.5 accent-orange-400"
+                />
+                <span className="text-xs font-bold text-orange-500 w-10 text-right">{selectedWp.heading}°</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                <span>N</span><span>E</span><span>S</span><span>W</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={0} max={359}
-                value={selectedWp.heading}
-                onChange={(e) => setWaypoints((prev) =>
-                  prev.map((w) => w.id === selectedWp.id ? { ...w, heading: Number(e.target.value) } : w)
-                )}
-                className="flex-1 h-1.5 accent-orange-400"
-              />
-              <span className="text-xs font-bold text-orange-500 w-10 text-right">{selectedWp.heading}°</span>
+
+            {/* 대기시간 */}
+            <div>
+              <div className="text-xs font-semibold text-gray-700 mb-1.5">대기시간</div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setWaypoints((prev) =>
+                    prev.map((w) => w.id === selectedWp.id
+                      ? { ...w, waitSec: Math.max(0, (w.waitSec ?? 0) - 1) } : w)
+                  )}
+                  className="w-6 h-6 rounded border border-gray-200 text-gray-500 hover:bg-gray-100 text-xs font-bold flex items-center justify-center"
+                >−</button>
+                <input
+                  type="number" min={0} max={300}
+                  value={selectedWp.waitSec ?? 0}
+                  onChange={(e) => setWaypoints((prev) =>
+                    prev.map((w) => w.id === selectedWp.id
+                      ? { ...w, waitSec: Math.max(0, Number(e.target.value)) } : w)
+                  )}
+                  className="w-14 text-center text-xs border border-gray-200 rounded px-1 py-1 focus:outline-none focus:border-cyan-400"
+                />
+                <button
+                  onClick={() => setWaypoints((prev) =>
+                    prev.map((w) => w.id === selectedWp.id
+                      ? { ...w, waitSec: Math.min(300, (w.waitSec ?? 0) + 1) } : w)
+                  )}
+                  className="w-6 h-6 rounded border border-gray-200 text-gray-500 hover:bg-gray-100 text-xs font-bold flex items-center justify-center"
+                >+</button>
+                <span className="text-xs text-gray-400">초</span>
+              </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>N(0°)</span><span>E(90°)</span><span>S(180°)</span><span>W(270°)</span>
+
+            {/* 자세 */}
+            <div>
+              <div className="text-xs font-semibold text-gray-700 mb-1.5">자세</div>
+              <div className="flex gap-1">
+                {[
+                  { value: 'normal', label: '일반' },
+                  { value: 'tilt',   label: '기울이기' },
+                  { value: 'sit',    label: '앉기' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setWaypoints((prev) =>
+                      prev.map((w) => w.id === selectedWp.id ? { ...w, posture: value } : w)
+                    )}
+                    className={`flex-1 py-1 text-xs rounded border transition-colors ${
+                      (selectedWp.posture ?? 'normal') === value
+                        ? 'bg-cyan-500 text-white border-cyan-500 font-medium'
+                        : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
