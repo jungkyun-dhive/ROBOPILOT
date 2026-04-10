@@ -22,7 +22,7 @@ function drawLidarMap(ctx, mapId) {
   const G = 20; // 1 m = 20 px  (0.05 m/px)
 
   // Color theme
-  const GRD = '#1a6070';   // 1 m grid lines
+  const GRD = 'rgba(255,255,255,0.18)'; // 1 m grid lines (white, subtle)
   const WO  = '#3de8ff';   // outer boundary (bright cyan)
   const WI  = '#00c8dc';   // inner walls
   const OBS = '#020c14';   // obstacles / equipment
@@ -487,7 +487,8 @@ function RoutePlanning() {
                       key={`line-${wp.id}`}
                       x1={prev.x} y1={prev.y} x2={wp.x} y2={wp.y}
                       stroke="rgba(255,255,255,0.9)"
-                      strokeWidth={2.5}
+                      strokeWidth={2}
+                      strokeDasharray="8 5"
                       strokeLinecap="round"
                       style={{ pointerEvents: 'none' }}
                     />
@@ -522,11 +523,9 @@ function RoutePlanning() {
                         />
                       )}
 
-                      {/* Direction arrow group (rotates with heading) */}
+                      {/* Direction arrow group (rotates with heading) — arrowhead only, no stem */}
                       <g transform={`rotate(${wp.heading})`} style={{ pointerEvents: 'none' }}>
-                        <line x1={0} y1={-WP_R} x2={0} y2={-WP_R - 8}
-                          stroke="rgba(255,255,255,0.9)" strokeWidth={2.5} strokeLinecap="round" />
-                        <polygon points={`0,${-WP_R - 16} -5,${-WP_R - 7} 5,${-WP_R - 7}`}
+                        <polygon points={`0,${-WP_R - 10} -6,${-WP_R} 6,${-WP_R}`}
                           fill="rgba(255,255,255,0.95)" />
                       </g>
 
