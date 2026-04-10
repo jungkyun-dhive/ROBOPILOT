@@ -251,6 +251,15 @@ function RoutePlanning() {
 
   const [editingName, setEditingName] = useState(null); // { type: 'site'|'map'|'route', id, mapId?, value }
 
+  // Local site name overrides — independent of Sites API
+  const [siteNameOverrides, setSiteNameOverrides] = useState(() => {
+    try { const s = localStorage.getItem('robopilot_site_name_overrides'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  // Local map name overrides — for MOCK_MAPS whose names can't be changed in-place
+  const [mapNameOverrides, setMapNameOverrides] = useState(() => {
+    try { const s = localStorage.getItem('robopilot_map_name_overrides'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+
   const [zoom, setZoom] = useState(1);
   const [sites, setSites] = useState([]);
   const [sitesLoading, setSitesLoading] = useState(true);
@@ -269,6 +278,10 @@ function RoutePlanning() {
   useEffect(() => {
     localStorage.setItem('robopilot_user_maps', JSON.stringify(userMaps));
   }, [userMaps]);
+
+  // Persist name overrides
+  useEffect(() => { localStorage.setItem('robopilot_site_name_overrides', JSON.stringify(siteNameOverrides)); }, [siteNameOverrides]);
+  useEffect(() => { localStorage.setItem('robopilot_map_name_overrides', JSON.stringify(mapNameOverrides)); }, [mapNameOverrides]);
 
   // Auto-save waypoints to the active route whenever they change
   useEffect(() => {
@@ -488,20 +501,24 @@ function RoutePlanning() {
     setNogoDrawing(null); setEditorDrag(null);
   };
 
-  const handleSaveEditName = async () => {
+  // Helper: get effective site/map name (override takes priority)
+  const getSiteName = (site) => siteNameOverrides[site.id] ?? site.name;
+  const getMapName = (m) => mapNameOverrides[m.id] ?? m.name;
+
+  const handleSaveEditName = () => {
     if (!editingName) return;
     const newName = editingName.value.trim();
     if (!newName) { setEditingName(null); return; }
     if (editingName.type === 'site') {
-      try {
-        const site = sites.find((s) => s.id === editingName.id);
-        if (site) {
-          await siteApi.update(editingName.id, { ...site, name: newName });
-          setSites((prev) => prev.map((s) => s.id === editingName.id ? { ...s, name: newName } : s));
-        }
-      } catch { alert('사이트 이름 수정에 실패했습니다.'); }
+      // Store locally only — independent of Sites API
+      setSiteNameOverrides((prev) => ({ ...prev, [editingName.id]: newName }));
     } else if (editingName.type === 'map') {
-      setUserMaps((prev) => prev.map((m) => m.id === editingName.id ? { ...m, name: newName } : m));
+      const isUserMap = userMaps.some((m) => m.id === editingName.id);
+      if (isUserMap) {
+        setUserMaps((prev) => prev.map((m) => m.id === editingName.id ? { ...m, name: newName } : m));
+      } else {
+        setMapNameOverrides((prev) => ({ ...prev, [editingName.id]: newName }));
+      }
     } else if (editingName.type === 'route') {
       setSavedRoutes((prev) => ({
         ...prev,
@@ -779,9 +796,9 @@ function RoutePlanning() {
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       const isExtra = typeof site.id === 'string' && site.id.startsWith('_extra_');
-                      if (!isExtra) setEditingName({ type: 'site', id: site.id, value: site.name });
+                      if (!isExtra) setEditingName({ type: 'site', id: site.id, value: getSiteName(site) });
                     }}
-                  >{site.name}</span>
+                  >{getSiteName(site)}</span>
                 )}
                 <button
                   onClick={() => openMapEditor(site.id, site.name)}
@@ -822,10 +839,10 @@ function RoutePlanning() {
                               className="font-medium truncate flex items-center gap-1"
                               onDoubleClick={(e) => {
                                 e.stopPropagation();
-                                if (m.isUserCreated) setEditingName({ type: 'map', id: m.id, value: m.name });
+                                setEditingName({ type: 'map', id: m.id, value: getMapName(m) });
                               }}
                             >
-                              {m.name.split(' ').slice(-2).join(' ')}
+                              {getMapName(m).split(' ').slice(-2).join(' ')}
                               {m.isUserCreated && <span className="text-green-400 text-xs">✎</span>}
                             </div>
                           )}
@@ -898,7 +915,7 @@ function RoutePlanning() {
         </div>
         {selectedMap && (
           <div className="border-t border-gray-200 p-3 text-xs text-gray-500 space-y-0.5">
-            <div className="font-semibold text-gray-700 truncate">{selectedMap.name}</div>
+            <div className="font-semibold text-gray-700 truncate">{getMapName(selectedMap)}</div>
             <div>해상도: {selectedMap.resolution}</div>
             <div>스캔일: {selectedMap.scannedAt}</div>
           </div>
@@ -1104,7 +1121,7 @@ function RoutePlanning() {
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-800 mr-1">
-            {selectedMap ? selectedMap.name : '맵을 선택하세요'}
+            {selectedMap ? getMapName(selectedMap) : '맵을 선택하세요'}
           </span>
 
           {/* Tool toggle */}
