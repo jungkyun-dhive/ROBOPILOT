@@ -28,6 +28,68 @@ function drawEditorBg(ctx) {
   for (let y = 0; y <= MAP_H; y += G) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_W, y); ctx.stroke(); }
 }
 
+// ─── Render a user-created map (finished state, same style as MOCK_MAPS) ────
+function drawUserMap(ctx, userMap) {
+  const w = MAP_W, h = MAP_H, G = 20;
+  // 1. Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  const pts = userMap.polygon || [];
+  if (pts.length >= 3 && userMap.polygonClosed) {
+    // 2. Fill interior with traversable-area color
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.fillStyle = '#165a72';
+    ctx.fill();
+    // Blacken exterior using even-odd rule
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.fillStyle = '#000';
+    ctx.fill('evenodd');
+    // Outer boundary line
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.strokeStyle = '#00e7ff';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  // 3. No-go zones — black filled (obstacle style), drawn over traversable area
+  for (const n of (userMap.nogoZones || [])) {
+    ctx.fillStyle = '#020c14';
+    ctx.fillRect(n.x, n.y, n.w, n.h);
+    ctx.strokeStyle = 'rgba(0,231,255,0.7)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(n.x, n.y, n.w, n.h);
+  }
+
+  // 4. Walls — dim cyan lines
+  ctx.lineCap = 'round';
+  for (const wall of (userMap.walls || [])) {
+    ctx.beginPath();
+    ctx.moveTo(wall.x1, wall.y1);
+    ctx.lineTo(wall.x2, wall.y2);
+    ctx.strokeStyle = 'rgba(0,231,255,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // 5. Grid always on top
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 0.75;
+  for (let x = 0; x <= w; x += G) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += G) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+}
+
 // ─── LiDAR map rendering — Vector Space style ────────────────────────────────
 function drawLidarMap(ctx, mapId) {
   const w = MAP_W;
@@ -303,8 +365,13 @@ function RoutePlanning() {
   useEffect(() => {
     if (!canvasRef.current || !selectedMapId) return;
     const ctx = canvasRef.current.getContext('2d');
-    drawLidarMap(ctx, selectedMapId);
-  }, [selectedMapId]);
+    const userMap = userMaps.find((m) => m.id === selectedMapId);
+    if (userMap) {
+      drawUserMap(ctx, userMap);
+    } else {
+      drawLidarMap(ctx, selectedMapId);
+    }
+  }, [selectedMapId, userMaps]);
 
   // Load sites from API
   useEffect(() => {
@@ -494,7 +561,25 @@ function RoutePlanning() {
     nextEditorId.current = 1;
   };
 
+  // Open an EXISTING user map for editing (loads its saved polygon/walls/nogoZones)
+  const openExistingMapEditor = (m) => {
+    setActiveEditMapId(m.id);
+    setMapEditor({ siteId: null, siteName: m.site, mapName: getMapName(m) });
+    setEditorTool('zone');
+    setZonePoints(m.polygon || []);
+    setZoneClosed(m.polygonClosed || false);
+    setWalls(m.walls || []);
+    setNogoZones(m.nogoZones || []);
+    setWallStart(null); setMousePos(null); setSelectedEditorId(null);
+    const allIds = [
+      ...(m.polygon || []), ...(m.walls || []), ...(m.nogoZones || []),
+    ].map((x) => x.id || 0);
+    nextEditorId.current = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+  };
+
   const closeMapEditor = () => {
+    // After editing, show the rendered map in route-planning view
+    if (activeEditMapId) setSelectedMapId(activeEditMapId);
     setMapEditor(null);
     setActiveEditMapId(null);
     setWallStart(null); setMousePos(null);
@@ -818,10 +903,20 @@ function RoutePlanning() {
                     <div key={m.id}>
                       {/* Map row */}
                       <div className={`flex items-center px-3 py-2 rounded-lg text-xs transition-colors ${
-                        selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                        activeEditMapId === m.id ? 'bg-green-50 text-green-700 font-medium' :
+                        selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' :
+                        'text-gray-700 hover:bg-gray-50'
                       }`}>
                         <div
-                          onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
+                          onClick={() => {
+                            if (m.isUserCreated) {
+                              openExistingMapEditor(m);
+                            } else {
+                              setSelectedMapId(m.id);
+                              setWaypoints([]); nextId.current = 1;
+                              setSelectedWpId(null); setActiveRouteId(null);
+                            }
+                          }}
                           className="flex-1 text-left min-w-0 cursor-pointer"
                         >
                           {editingName?.type === 'map' && editingName?.id === m.id ? (
