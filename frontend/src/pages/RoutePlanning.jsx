@@ -236,9 +236,18 @@ function RoutePlanning() {
   const [mousePos, setMousePos] = useState(null);
   const [selectedEditorId, setSelectedEditorId] = useState(null);
   const [dragZPId, setDragZPId] = useState(null); // drag-reorder zone point id
+  const [activeEditMapId, setActiveEditMapId] = useState(null); // user map being edited
   const editorCanvasRef = useRef(null);
   const editorSvgRef = useRef(null);
   const nextEditorId = useRef(1);
+
+  // User-created maps (persisted)
+  const [userMaps, setUserMaps] = useState(() => {
+    try {
+      const s = localStorage.getItem('robopilot_user_maps');
+      return s ? JSON.parse(s) : [];
+    } catch { return []; }
+  });
 
   const [zoom, setZoom] = useState(1);
   const [sites, setSites] = useState([]);
@@ -253,6 +262,11 @@ function RoutePlanning() {
   useEffect(() => {
     localStorage.setItem('robopilot_saved_routes', JSON.stringify(savedRoutes));
   }, [savedRoutes]);
+
+  // Persist userMaps to localStorage
+  useEffect(() => {
+    localStorage.setItem('robopilot_user_maps', JSON.stringify(userMaps));
+  }, [userMaps]);
 
   // Auto-save waypoints to the active route whenever they change
   useEffect(() => {
@@ -285,8 +299,9 @@ function RoutePlanning() {
       .finally(() => setSitesLoading(false));
   }, []);
 
-  // Group MOCK_MAPS under API sites; unmatched maps go under their own site string
+  // Group all maps (built-in + user-created) under API sites
   const mapsBySite = useMemo(() => {
+    const allMaps = [...MOCK_MAPS, ...userMaps];
     const match = (map, site) => {
       const s = map.site.toLowerCase();
       const sn = site.name.toLowerCase();
@@ -297,7 +312,7 @@ function RoutePlanning() {
     if (sites.length === 0) {
       // Fallback: group by map.site string
       const groups = {};
-      for (const m of MOCK_MAPS) {
+      for (const m of allMaps) {
         (groups[m.site] = groups[m.site] || []).push(m);
       }
       return Object.entries(groups).map(([name, maps]) => ({
@@ -308,13 +323,13 @@ function RoutePlanning() {
 
     const assignedIds = new Set();
     const result = sites.map((site) => {
-      const maps = MOCK_MAPS.filter((m) => match(m, site));
+      const maps = allMaps.filter((m) => match(m, site));
       maps.forEach((m) => assignedIds.add(m.id));
       return { site, maps };
     });
 
     // Unmatched maps grouped by their site string
-    const unmatched = MOCK_MAPS.filter((m) => !assignedIds.has(m.id));
+    const unmatched = allMaps.filter((m) => !assignedIds.has(m.id));
     const extra = {};
     for (const m of unmatched) (extra[m.site] = extra[m.site] || []).push(m);
     for (const [name, maps] of Object.entries(extra)) {
@@ -322,7 +337,7 @@ function RoutePlanning() {
     }
 
     return result;
-  }, [sites]);
+  }, [sites, userMaps]);
 
   const isSiteOpen = (siteId) => openSites[siteId] !== false;
   const toggleSite = (siteId) =>
@@ -333,6 +348,18 @@ function RoutePlanning() {
     if (!mapEditor || !editorCanvasRef.current) return;
     drawEditorBg(editorCanvasRef.current.getContext('2d'));
   }, [mapEditor]);
+
+  // Auto-save editor state into the active userMap entry
+  useEffect(() => {
+    if (!activeEditMapId) return;
+    setUserMaps((prev) =>
+      prev.map((m) =>
+        m.id === activeEditMapId
+          ? { ...m, polygon: zonePoints, polygonClosed: zoneClosed, walls, nogoZones }
+          : m
+      )
+    );
+  }, [zonePoints, zoneClosed, walls, nogoZones, activeEditMapId]);
 
   const editorCoords = useCallback((e) => {
     const rect = editorSvgRef.current.getBoundingClientRect();
@@ -425,9 +452,26 @@ function RoutePlanning() {
   }, [nogoDrawing]);
 
   const openMapEditor = (siteId, siteName) => {
-    const name = window.prompt('새 맵 이름을 입력하세요', `${siteName} 맵`);
+    const defaultName = `${siteName} 맵 ${userMaps.filter((m) => m.site === siteName).length + 1}`;
+    const name = window.prompt('새 맵 이름을 입력하세요', defaultName);
     if (name === null) return;
-    setMapEditor({ siteId, siteName, mapName: name.trim() || `${siteName} 맵` });
+    const mapName = name.trim() || defaultName;
+    const mapId = Date.now();
+    // Create map entry immediately → shows in tree right away
+    setUserMaps((prev) => [...prev, {
+      id: mapId,
+      name: mapName,
+      site: siteName,
+      scannedAt: new Date().toISOString().split('T')[0],
+      resolution: '0.05m/px',
+      isUserCreated: true,
+      polygon: [],
+      polygonClosed: false,
+      walls: [],
+      nogoZones: [],
+    }]);
+    setActiveEditMapId(mapId);
+    setMapEditor({ siteId, siteName, mapName });
     setEditorTool('zone');
     setZonePoints([]); setZoneClosed(false);
     setWalls([]); setNogoZones([]);
@@ -437,6 +481,7 @@ function RoutePlanning() {
 
   const closeMapEditor = () => {
     setMapEditor(null);
+    setActiveEditMapId(null);
     setWallStart(null); setMousePos(null);
     setNogoDrawing(null); setEditorDrag(null);
   };
@@ -716,9 +761,23 @@ function RoutePlanning() {
                           onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
                           className="flex-1 text-left min-w-0"
                         >
-                          <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
+                          <div className="font-medium truncate flex items-center gap-1">
+                            {m.name.split(' ').slice(-2).join(' ')}
+                            {m.isUserCreated && <span className="text-green-400 text-xs">✎</span>}
+                          </div>
                           <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
                         </button>
+                        {/* Delete user map */}
+                        {m.isUserCreated && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); if (window.confirm(`'${m.name}' 맵을 삭제할까요?`)) { setUserMaps((prev) => prev.filter((um) => um.id !== m.id)); if (selectedMapId === m.id) { setSelectedMapId(null); setWaypoints([]); } } }}
+                            title="맵 삭제"
+                            className="ml-1 p-0.5 rounded text-gray-300 hover:text-red-400 hover:bg-red-50 flex-shrink-0"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                        {/* Add route button */}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleCreateRoute(m.id); }}
                           title="새 경로 만들기"
