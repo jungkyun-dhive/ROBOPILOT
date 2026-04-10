@@ -203,12 +203,23 @@ function RoutePlanning() {
   const [dragging, setDragging] = useState(null);
   const [rotating, setRotating] = useState(null);
   const [dragOrderId, setDragOrderId] = useState(null);
-  const [savedRoutes, setSavedRoutes] = useState({}); // { [mapId]: [{id,name,waypoints,savedAt}] }
+  const [savedRoutes, setSavedRoutes] = useState(() => {
+    try {
+      const s = localStorage.getItem('robopilot_saved_routes');
+      return s ? JSON.parse(s) : {};
+    } catch { return {}; }
+  });
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
   const canvasRef = useRef(null);
   const svgRef = useRef(null);
+  const fileInputRef = useRef(null);
   const nextId = useRef(1);
+
+  // Persist savedRoutes to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem('robopilot_saved_routes', JSON.stringify(savedRoutes));
+  }, [savedRoutes]);
 
   useEffect(() => {
     if (!canvasRef.current || !selectedMapId) return;
@@ -328,10 +339,76 @@ function RoutePlanning() {
     }));
   };
 
+  // ── JSON 파일 불러오기 ─────────────────────────────────────────────────────
+  const handleImportRoute = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.map?.id || !Array.isArray(data.waypoints)) {
+          alert('유효하지 않은 경로 파일입니다.');
+          return;
+        }
+        const mapId = data.map.id;
+        let name = data.routeName || data.map.name;
+
+        // 이름 충돌 확인
+        const existing = savedRoutes[mapId] ?? [];
+        if (existing.some((r) => r.name === name)) {
+          const newName = window.prompt(
+            `'${name}' 이름의 경로가 이미 존재합니다.\n새 이름을 입력하세요:`,
+            `${name} (2)`
+          );
+          if (newName === null) return; // 취소
+          name = newName.trim() || name;
+        }
+
+        const loadedWp = data.waypoints.map((wp) => ({
+          id: wp.id,
+          x: wp.x_px,
+          y: wp.y_px,
+          heading: wp.heading_deg ?? 0,
+          waitSec: wp.wait_sec ?? 0,
+          posture: wp.posture ?? 'normal',
+        }));
+
+        const newRoute = {
+          id: Date.now(),
+          name,
+          waypoints: loadedWp,
+          savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setSavedRoutes((prev) => ({
+          ...prev,
+          [mapId]: [...(prev[mapId] ?? []), newRoute],
+        }));
+
+        // 맵 + 웨이포인트 바로 적용
+        setSelectedMapId(mapId);
+        setWaypoints(loadedWp);
+        nextId.current = Math.max(...loadedWp.map((w) => w.id), 0) + 1;
+        setSelectedWpId(null);
+      } catch {
+        alert('파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const saveRoute = () => {
     const map = MOCK_MAPS.find((m) => m.id === selectedMapId);
+    // 마지막으로 저장된 경로 이름을 JSON에 포함 (없으면 맵 이름 사용)
+    const mapRoutes = savedRoutes[selectedMapId] ?? [];
+    const routeName = mapRoutes.length > 0
+      ? mapRoutes[mapRoutes.length - 1].name
+      : map.name;
     const data = {
       version: '1.0',
+      routeName,
       map: { id: map.id, name: map.name, site: map.site, resolution: map.resolution, width: MAP_W, height: MAP_H },
       waypoints: waypoints.map((wp, i) => ({
         index: i + 1, id: wp.id,
@@ -504,6 +581,11 @@ function RoutePlanning() {
             <button onClick={handleSaveRoute} disabled={!selectedMapId || waypoints.length < 1}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cyan-700 hover:bg-cyan-50 rounded-lg border border-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed">
               <Save className="h-3.5 w-3.5" />경로 저장
+            </button>
+            <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportRoute} />
+            <button onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-300">
+              <FolderOpen className="h-3.5 w-3.5" />불러오기
             </button>
             <button onClick={saveRoute} disabled={!selectedMapId || waypoints.length < 2}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
