@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
-  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw
+  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical
 } from 'lucide-react';
 
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
@@ -201,6 +201,7 @@ function RoutePlanning() {
   const [selectedWpId, setSelectedWpId] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [rotating, setRotating] = useState(null);
+  const [dragOrderId, setDragOrderId] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
   const canvasRef = useRef(null);
@@ -235,7 +236,7 @@ function RoutePlanning() {
 
   const handleWpClick = useCallback((e, id) => {
     e.stopPropagation();
-    setSelectedWpId((prev) => prev === id ? null : id);
+    setSelectedWpId(id); // always select — click background to deselect
   }, []);
 
   const handleWpMouseDown = useCallback((e, id) => {
@@ -539,10 +540,9 @@ function RoutePlanning() {
                         style={{ cursor: tool === 'move' ? 'grab' : 'pointer' }}
                         onMouseDown={(e) => {
                           if (tool === 'move') handleWpMouseDown(e, wp.id);
-                          else handleWpClick(e, wp.id);
                         }}
                         onClick={(e) => {
-                          if (tool === 'add') handleWpClick(e, wp.id);
+                          handleWpClick(e, wp.id);
                         }}
                       />
 
@@ -625,13 +625,39 @@ function RoutePlanning() {
               {waypoints.map((wp, i) => (
                 <div
                   key={wp.id}
-                  onClick={() => setSelectedWpId(wp.id === selectedWpId ? null : wp.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDragOrderId(wp.id);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragOrderId === null || dragOrderId === wp.id) return;
+                    setWaypoints((prev) => {
+                      const items = [...prev];
+                      const fromIdx = items.findIndex((w) => w.id === dragOrderId);
+                      const toIdx   = items.findIndex((w) => w.id === wp.id);
+                      const [moved] = items.splice(fromIdx, 1);
+                      items.splice(toIdx, 0, moved);
+                      return items;
+                    });
+                    setDragOrderId(null);
+                  }}
+                  onDragEnd={() => setDragOrderId(null)}
+                  onClick={() => setSelectedWpId(wp.id)}
+                  className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
+                    dragOrderId === wp.id ? 'opacity-40' : ''
+                  } ${
                     selectedWpId === wp.id
                       ? 'bg-cyan-50 border border-cyan-200'
                       : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
+                  <GripVertical className="h-3.5 w-3.5 text-gray-300 flex-shrink-0 cursor-grab" />
                   <div
                     className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                     style={{ backgroundColor: i === 0 ? WP_COLOR_FIRST : WP_COLOR }}
