@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
   ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical,
-  FolderOpen, Navigation2, Square, Minus, Layers, Check, X
+  FolderOpen, Navigation2, Square, Minus, Layers, Check, X, Pencil
 } from 'lucide-react';
 import { siteApi } from '../utils/api';
 
@@ -371,7 +371,7 @@ function RoutePlanning() {
     } else {
       drawLidarMap(ctx, selectedMapId);
     }
-  }, [selectedMapId, userMaps]);
+  }, [selectedMapId, userMaps, mapEditor]);
 
   // Load sites from API
   useEffect(() => {
@@ -799,16 +799,15 @@ function RoutePlanning() {
   };
 
   const saveRoute = () => {
-    const map = MOCK_MAPS.find((m) => m.id === selectedMapId);
-    // 마지막으로 저장된 경로 이름을 JSON에 포함 (없으면 맵 이름 사용)
+    if (!currentMap) return;
     const mapRoutes = savedRoutes[selectedMapId] ?? [];
     const routeName = mapRoutes.length > 0
       ? mapRoutes[mapRoutes.length - 1].name
-      : map.name;
+      : getMapName(currentMap);
     const data = {
       version: '1.0',
       routeName,
-      map: { id: map.id, name: map.name, site: map.site, resolution: map.resolution, width: MAP_W, height: MAP_H },
+      map: { id: currentMap.id, name: getMapName(currentMap), site: currentMap.site, resolution: currentMap.resolution, width: MAP_W, height: MAP_H },
       waypoints: waypoints.map((wp, i) => ({
         index: i + 1, id: wp.id,
         x_px: Math.round(wp.x), y_px: Math.round(wp.y),
@@ -840,6 +839,8 @@ function RoutePlanning() {
   };
 
   const selectedMap = MOCK_MAPS.find((m) => m.id === selectedMapId);
+  const selectedUserMap = userMaps.find((m) => m.id === selectedMapId);
+  const currentMap = selectedUserMap || selectedMap; // whichever is selected
   const selectedWp = waypoints.find((w) => w.id === selectedWpId);
   const selectedWpIndex = waypoints.findIndex((w) => w.id === selectedWpId);
 
@@ -1012,11 +1013,11 @@ function RoutePlanning() {
             </div>
           ))}
         </div>
-        {selectedMap && (
+        {currentMap && !mapEditor && (
           <div className="border-t border-gray-200 p-3 text-xs text-gray-500 space-y-0.5">
-            <div className="font-semibold text-gray-700 truncate">{getMapName(selectedMap)}</div>
-            <div>해상도: {selectedMap.resolution}</div>
-            <div>스캔일: {selectedMap.scannedAt}</div>
+            <div className="font-semibold text-gray-700 truncate">{getMapName(currentMap)}</div>
+            <div>해상도: {currentMap.resolution}</div>
+            <div>스캔일: {currentMap.scannedAt}</div>
           </div>
         )}
       </div>
@@ -1220,30 +1221,42 @@ function RoutePlanning() {
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-gray-800 mr-1">
-            {selectedMap ? getMapName(selectedMap) : '맵을 선택하세요'}
+            {currentMap ? getMapName(currentMap) : '맵을 선택하세요'}
           </span>
 
-          {/* Tool toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+          {/* 편집 시작 button — only for user maps */}
+          {selectedUserMap && (
             <button
-              onClick={() => setTool('add')}
-              title="웨이포인트 추가"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tool === 'add' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
+              onClick={() => openExistingMapEditor(selectedMapId)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-green-700 hover:bg-green-50 rounded-lg border border-green-300"
             >
-              <Plus className="h-3.5 w-3.5" />추가
+              <Pencil className="h-3.5 w-3.5" />편집 시작
             </button>
-            <button
-              onClick={() => setTool('move')}
-              title="위치 이동 / 방향 회전"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tool === 'move' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Move className="h-3.5 w-3.5" />이동
-            </button>
-          </div>
+          )}
+
+          {/* Tool toggle — only useful when there's a map selected */}
+          {selectedMapId && (
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+              <button
+                onClick={() => setTool('add')}
+                title="웨이포인트 추가"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  tool === 'add' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5" />추가
+              </button>
+              <button
+                onClick={() => setTool('move')}
+                title="위치 이동 / 방향 회전"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  tool === 'move' ? 'bg-white shadow text-cyan-600' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Move className="h-3.5 w-3.5" />이동
+              </button>
+            </div>
+          )}
 
           {/* Zoom */}
           <div className="flex items-center gap-1">
@@ -1253,21 +1266,23 @@ function RoutePlanning() {
             <button onClick={() => setZoom(1)} className="p-1.5 rounded hover:bg-gray-100 text-gray-500"><Maximize2 className="h-4 w-4" /></button>
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-3 ml-2 text-xs text-gray-400 border-l pl-3">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR_FIRST }} />출발점
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR }} />웨이포인트
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-0.5 inline-block bg-white border border-gray-300" />경로
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />방향 핸들
-            </span>
-          </div>
+          {/* Legend — hide for user maps with no route yet */}
+          {(selectedMap || activeRouteId) && (
+            <div className="flex items-center gap-3 ml-2 text-xs text-gray-400 border-l pl-3">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR_FIRST }} />출발점
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: WP_COLOR }} />웨이포인트
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-4 h-0.5 inline-block bg-white border border-gray-300" />경로
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />방향 핸들
+              </span>
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <button onClick={clearAll} disabled={waypoints.length === 0}
