@@ -249,6 +249,8 @@ function RoutePlanning() {
     } catch { return []; }
   });
 
+  const [editingName, setEditingName] = useState(null); // { type: 'site'|'map'|'route', id, mapId?, value }
+
   const [zoom, setZoom] = useState(1);
   const [sites, setSites] = useState([]);
   const [sitesLoading, setSitesLoading] = useState(true);
@@ -484,6 +486,31 @@ function RoutePlanning() {
     setActiveEditMapId(null);
     setWallStart(null); setMousePos(null);
     setNogoDrawing(null); setEditorDrag(null);
+  };
+
+  const handleSaveEditName = async () => {
+    if (!editingName) return;
+    const newName = editingName.value.trim();
+    if (!newName) { setEditingName(null); return; }
+    if (editingName.type === 'site') {
+      try {
+        const site = sites.find((s) => s.id === editingName.id);
+        if (site) {
+          await siteApi.update(editingName.id, { ...site, name: newName });
+          setSites((prev) => prev.map((s) => s.id === editingName.id ? { ...s, name: newName } : s));
+        }
+      } catch { alert('사이트 이름 수정에 실패했습니다.'); }
+    } else if (editingName.type === 'map') {
+      setUserMaps((prev) => prev.map((m) => m.id === editingName.id ? { ...m, name: newName } : m));
+    } else if (editingName.type === 'route') {
+      setSavedRoutes((prev) => ({
+        ...prev,
+        [editingName.mapId]: (prev[editingName.mapId] ?? []).map((r) =>
+          r.id === editingName.id ? { ...r, name: newName } : r
+        ),
+      }));
+    }
+    setEditingName(null);
   };
 
   const svgCoords = useCallback((e) => {
@@ -730,13 +757,32 @@ function RoutePlanning() {
               <div className="flex items-center">
                 <button
                   onClick={() => toggleSite(site.id)}
-                  className="flex-1 flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded transition-colors min-w-0"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 flex-shrink-0"
                 >
                   {isSiteOpen(site.id)
-                    ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
-                    : <ChevronRight className="h-3 w-3 flex-shrink-0" />}
-                  <span className="flex-1 text-left truncate normal-case">{site.name}</span>
+                    ? <ChevronDown className="h-3 w-3" />
+                    : <ChevronRight className="h-3 w-3" />}
                 </button>
+                {editingName?.type === 'site' && editingName?.id === site.id ? (
+                  <input
+                    autoFocus
+                    value={editingName.value}
+                    onChange={(e) => setEditingName((prev) => ({ ...prev, value: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEditName(); if (e.key === 'Escape') setEditingName(null); }}
+                    onBlur={handleSaveEditName}
+                    className="flex-1 text-xs font-semibold border border-cyan-400 rounded px-1 py-0.5 focus:outline-none min-w-0"
+                  />
+                ) : (
+                  <span
+                    className="flex-1 text-xs font-semibold text-gray-500 truncate normal-case cursor-pointer px-1 py-1 hover:bg-gray-50 rounded"
+                    onClick={() => toggleSite(site.id)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      const isExtra = typeof site.id === 'string' && site.id.startsWith('_extra_');
+                      if (!isExtra) setEditingName({ type: 'site', id: site.id, value: site.name });
+                    }}
+                  >{site.name}</span>
+                )}
                 <button
                   onClick={() => openMapEditor(site.id, site.name)}
                   title="새 맵 추가"
@@ -757,16 +803,34 @@ function RoutePlanning() {
                       <div className={`flex items-center px-3 py-2 rounded-lg text-xs transition-colors ${
                         selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                       }`}>
-                        <button
+                        <div
                           onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); setActiveRouteId(null); }}
-                          className="flex-1 text-left min-w-0"
+                          className="flex-1 text-left min-w-0 cursor-pointer"
                         >
-                          <div className="font-medium truncate flex items-center gap-1">
-                            {m.name.split(' ').slice(-2).join(' ')}
-                            {m.isUserCreated && <span className="text-green-400 text-xs">✎</span>}
-                          </div>
+                          {editingName?.type === 'map' && editingName?.id === m.id ? (
+                            <input
+                              autoFocus
+                              value={editingName.value}
+                              onChange={(e) => setEditingName((prev) => ({ ...prev, value: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEditName(); if (e.key === 'Escape') setEditingName(null); }}
+                              onBlur={handleSaveEditName}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full text-xs font-medium border border-cyan-400 rounded px-1 py-0.5 focus:outline-none"
+                            />
+                          ) : (
+                            <div
+                              className="font-medium truncate flex items-center gap-1"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                if (m.isUserCreated) setEditingName({ type: 'map', id: m.id, value: m.name });
+                              }}
+                            >
+                              {m.name.split(' ').slice(-2).join(' ')}
+                              {m.isUserCreated && <span className="text-green-400 text-xs">✎</span>}
+                            </div>
+                          )}
                           <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
-                        </button>
+                        </div>
                         {/* Delete user map */}
                         {m.isUserCreated && (
                           <button
@@ -799,7 +863,22 @@ function RoutePlanning() {
                           }`}
                         >
                           <Navigation2 className={`h-3 w-3 flex-shrink-0 ${activeRouteId?.routeId === route.id ? 'text-cyan-600' : 'text-cyan-400'}`} />
-                          <span className={`flex-1 text-xs truncate group-hover:text-cyan-700 ${activeRouteId?.routeId === route.id ? 'text-cyan-700 font-medium' : 'text-gray-600'}`}>{route.name}</span>
+                          {editingName?.type === 'route' && editingName?.id === route.id ? (
+                            <input
+                              autoFocus
+                              value={editingName.value}
+                              onChange={(e) => setEditingName((prev) => ({ ...prev, value: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEditName(); if (e.key === 'Escape') setEditingName(null); }}
+                              onBlur={handleSaveEditName}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 text-xs border border-cyan-400 rounded px-1 py-0.5 focus:outline-none min-w-0"
+                            />
+                          ) : (
+                            <span
+                              className={`flex-1 text-xs truncate group-hover:text-cyan-700 ${activeRouteId?.routeId === route.id ? 'text-cyan-700 font-medium' : 'text-gray-600'}`}
+                              onDoubleClick={(e) => { e.stopPropagation(); setEditingName({ type: 'route', id: route.id, mapId: m.id, value: route.name }); }}
+                            >{route.name}</span>
+                          )}
                           <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
                           <button
                             title="삭제"
