@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Map, Plus, Trash2, Download, RotateCcw, MousePointer, Move,
-  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical
+  ChevronRight, ChevronDown, ZoomIn, ZoomOut, Maximize2, RotateCw, GripVertical,
+  Save, FolderOpen, Navigation2
 } from 'lucide-react';
 
 // ─── Mock LiDAR map data ────────────────────────────────────────────────────
@@ -202,6 +203,7 @@ function RoutePlanning() {
   const [dragging, setDragging] = useState(null);
   const [rotating, setRotating] = useState(null);
   const [dragOrderId, setDragOrderId] = useState(null);
+  const [savedRoutes, setSavedRoutes] = useState({}); // { [mapId]: [{id,name,waypoints,savedAt}] }
   const [zoom, setZoom] = useState(1);
   const [mapListOpen, setMapListOpen] = useState(true);
   const canvasRef = useRef(null);
@@ -294,6 +296,38 @@ function RoutePlanning() {
     setWaypoints([]); setSelectedWpId(null); nextId.current = 1;
   };
 
+  // ── In-memory save / load ────────────────────────────────────────────────
+  const handleSaveRoute = () => {
+    if (!selectedMapId || waypoints.length < 1) return;
+    const count = (savedRoutes[selectedMapId]?.length ?? 0) + 1;
+    const defaultName = `경로 ${count}`;
+    const name = window.prompt('저장할 경로 이름을 입력하세요', defaultName);
+    if (name === null) return; // cancelled
+    setSavedRoutes((prev) => ({
+      ...prev,
+      [selectedMapId]: [...(prev[selectedMapId] ?? []), {
+        id: Date.now(),
+        name: name.trim() || defaultName,
+        waypoints: waypoints.map((wp) => ({ ...wp })),
+        savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      }],
+    }));
+  };
+
+  const handleLoadRoute = (route, mapId) => {
+    setSelectedMapId(mapId);
+    setWaypoints(route.waypoints.map((wp) => ({ ...wp })));
+    nextId.current = Math.max(...route.waypoints.map((w) => w.id), 0) + 1;
+    setSelectedWpId(null);
+  };
+
+  const handleDeleteSavedRoute = (mapId, routeId) => {
+    setSavedRoutes((prev) => ({
+      ...prev,
+      [mapId]: prev[mapId].filter((r) => r.id !== routeId),
+    }));
+  };
+
   const saveRoute = () => {
     const map = MOCK_MAPS.find((m) => m.id === selectedMapId);
     const data = {
@@ -356,16 +390,44 @@ function RoutePlanning() {
                 {site}
               </button>
               {mapListOpen && maps.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                    selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
-                  <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
-                </button>
+                <div key={m.id}>
+                  {/* Map row */}
+                  <button
+                    onClick={() => { setSelectedMapId(m.id); setWaypoints([]); nextId.current = 1; setSelectedWpId(null); }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                      selectedMapId === m.id ? 'bg-cyan-50 text-cyan-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-medium truncate">{m.name.split(' ').slice(-2).join(' ')}</div>
+                    <div className="text-gray-400 mt-0.5">{m.scannedAt}</div>
+                  </button>
+
+                  {/* Saved routes tree under this map */}
+                  {(savedRoutes[m.id] ?? []).map((route) => (
+                    <div
+                      key={route.id}
+                      className="ml-3 flex items-center gap-1 pl-2 pr-1 py-1.5 border-l-2 border-cyan-100 hover:border-cyan-300 hover:bg-gray-50 rounded-r group transition-colors"
+                    >
+                      <Navigation2 className="h-3 w-3 text-cyan-400 flex-shrink-0" />
+                      <span className="flex-1 text-xs text-gray-600 truncate">{route.name}</span>
+                      <span className="text-xs text-gray-300 flex-shrink-0">{route.savedAt}</span>
+                      <button
+                        title="불러오기"
+                        onClick={(e) => { e.stopPropagation(); handleLoadRoute(route, m.id); }}
+                        className="ml-0.5 p-0.5 text-cyan-400 hover:text-cyan-600 flex-shrink-0"
+                      >
+                        <FolderOpen className="h-3 w-3" />
+                      </button>
+                      <button
+                        title="삭제"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(m.id, route.id); }}
+                        className="p-0.5 text-gray-300 hover:text-red-500 flex-shrink-0"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           ))}
@@ -437,11 +499,15 @@ function RoutePlanning() {
           <div className="ml-auto flex items-center gap-2">
             <button onClick={clearAll} disabled={waypoints.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200 disabled:opacity-40 disabled:cursor-not-allowed">
-              <RotateCcw className="h-3.5 w-3.5" />전체 초기화
+              <RotateCcw className="h-3.5 w-3.5" />초기화
+            </button>
+            <button onClick={handleSaveRoute} disabled={!selectedMapId || waypoints.length < 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-cyan-700 hover:bg-cyan-50 rounded-lg border border-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed">
+              <Save className="h-3.5 w-3.5" />경로 저장
             </button>
             <button onClick={saveRoute} disabled={!selectedMapId || waypoints.length < 2}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
-              <Download className="h-3.5 w-3.5" />경로 저장
+              <Download className="h-3.5 w-3.5" />경로 다운로드
             </button>
           </div>
         </div>
