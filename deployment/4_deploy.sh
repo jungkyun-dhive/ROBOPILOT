@@ -141,7 +141,7 @@ echo "■ [5/6] Nginx 설정"
 
 cat > /etc/nginx/sites-available/robopilot <<NGINX
 server {
-    listen 80;
+    listen 8888;
     server_name _;
 
     # 프론트엔드 정적 파일
