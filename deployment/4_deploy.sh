@@ -27,58 +27,84 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 source "$ENV_FILE"
 
-# GitHub 저장소 URL 입력
-echo ""
-if [ -z "$REPO_URL" ]; then
-  read -rp "GitHub 저장소 URL (예: https://github.com/your-org/ROBOPILOT.git): " REPO_URL
-fi
-if [ -z "$REPO_URL" ]; then
-  echo "[ERROR] 저장소 URL을 입력해야 합니다."
-  exit 1
+# ── 소스 위치 결정 ─────────────────────────────────────────
+# 스크립트가 있는 디렉토리의 상위 = 프로젝트 루트로 추정
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+
+# APP_DIR 에 이미 소스가 있으면 그대로 사용
+# 없으면 스크립트 위치 기준으로 찾고, 그래도 없으면 GitHub 클론
+if [ -f "$APP_DIR/backend/pom.xml" ]; then
+  USE_DIR="$APP_DIR"
+  NEED_CLONE=false
+elif [ -f "$SOURCE_DIR/backend/pom.xml" ]; then
+  USE_DIR="$SOURCE_DIR"
+  NEED_CLONE=false
+else
+  NEED_CLONE=true
+  if [ -z "$REPO_URL" ]; then
+    echo ""
+    read -rp "GitHub 저장소 URL (예: https://github.com/your-org/ROBOPILOT.git): " REPO_URL
+  fi
+  if [ -z "$REPO_URL" ]; then
+    echo "[ERROR] 소스를 찾을 수 없고 저장소 URL도 없습니다."
+    exit 1
+  fi
+  USE_DIR="$APP_DIR"
 fi
 
 echo "============================================"
 echo "  ROBOPILOT 배포 시작"
-echo "  저장소: $REPO_URL"
+echo "  소스 경로: $USE_DIR"
 echo "  배포 경로: $APP_DIR"
 echo "============================================"
 
 # ── 1. 소스 가져오기 ────────────────────────────────────────
 echo ""
-echo "■ [1/6] 소스 코드 가져오기"
+echo "■ [1/6] 소스 코드 확인"
 
-if [ -d "$APP_DIR/.git" ]; then
-  echo "  기존 저장소 업데이트 (git pull)..."
-  git -C "$APP_DIR" pull
+if [ "$NEED_CLONE" = true ]; then
+  if [ -d "$APP_DIR/.git" ]; then
+    echo "  기존 저장소 업데이트 (git pull)..."
+    git -C "$APP_DIR" pull
+  else
+    echo "  저장소 클론: $REPO_URL → $APP_DIR"
+    rm -rf "$APP_DIR"
+    git clone "$REPO_URL" "$APP_DIR"
+  fi
 else
-  echo "  저장소 클론: $REPO_URL → $APP_DIR"
-  rm -rf "$APP_DIR"
-  git clone "$REPO_URL" "$APP_DIR"
+  echo "  소스 발견: $USE_DIR (클론 생략)"
+  # APP_DIR 와 소스 위치가 다르면 심볼릭 링크로 연결
+  if [ "$USE_DIR" != "$APP_DIR" ]; then
+    mkdir -p "$(dirname "$APP_DIR")"
+    ln -sfn "$USE_DIR" "$APP_DIR"
+    echo "  링크 생성: $APP_DIR → $USE_DIR"
+  fi
 fi
 
 # ── 2. 프론트엔드 빌드 ─────────────────────────────────────
 echo ""
 echo "■ [2/6] 프론트엔드 빌드"
-cd "$APP_DIR/frontend"
+cd "$USE_DIR/frontend"
 npm ci --silent
 npm run build
 
-echo "  ✓ 빌드 완료: $APP_DIR/frontend/dist"
+echo "  ✓ 빌드 완료: $USE_DIR/frontend/dist"
 
 # ── 3. 백엔드 빌드 ─────────────────────────────────────────
 echo ""
 echo "■ [3/6] 백엔드 빌드 (Maven)"
-cd "$APP_DIR/backend"
+cd "$USE_DIR/backend"
 mvn clean package -DskipTests -q
 
-JAR_PATH="$APP_DIR/backend/target/$JAR_NAME"
+JAR_PATH="$USE_DIR/backend/target/$JAR_NAME"
 if [ ! -f "$JAR_PATH" ]; then
   # 빌드 결과 jar 자동 탐색
-  JAR_PATH=$(find "$APP_DIR/backend/target" -name "*.jar" ! -name "*sources*" ! -name "*javadoc*" | head -1)
+  JAR_PATH=$(find "$USE_DIR/backend/target" -name "*.jar" ! -name "*sources*" ! -name "*javadoc*" | head -1)
 fi
 
 if [ -z "$JAR_PATH" ] || [ ! -f "$JAR_PATH" ]; then
-  echo "[ERROR] jar 파일을 찾을 수 없습니다: $APP_DIR/backend/target/"
+  echo "[ERROR] jar 파일을 찾을 수 없습니다: $USE_DIR/backend/target/"
   exit 1
 fi
 
@@ -96,7 +122,7 @@ chown -R "$APP_USER:$APP_USER" "$APP_DIR/bin" 2>/dev/null || true
 # 프론트엔드 정적 파일 복사
 mkdir -p "$WEB_ROOT"
 rm -rf "${WEB_ROOT:?}"/*
-cp -r "$APP_DIR/frontend/dist/." "$WEB_ROOT/"
+cp -r "$USE_DIR/frontend/dist/." "$WEB_ROOT/"
 echo "  ✓ 프론트엔드: $WEB_ROOT"
 
 # ── 5. Nginx 설정 ─────────────────────────────────────────
