@@ -159,7 +159,7 @@ server {
 
     # 백엔드 API
     location /api/ {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:8090;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -169,7 +169,7 @@ server {
 
     # WebSocket
     location /ws/ {
-        proxy_pass http://localhost:8080/ws/;
+        proxy_pass http://localhost:8090/ws/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -211,7 +211,7 @@ SyslogIdentifier=$SERVICE_NAME
 # 환경변수 (DB, JWT 등)
 EnvironmentFile=$ENV_FILE
 Environment="SPRING_PROFILES_ACTIVE=prod"
-Environment="SERVER_PORT=8080"
+Environment="SERVER_PORT=8090"
 
 [Install]
 WantedBy=multi-user.target
