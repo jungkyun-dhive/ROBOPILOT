@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=ec2-user
-WorkingDirectory=/opt/robopilot
-ExecStart=/usr/bin/java -jar /opt/robopilot/robopilot-backend.jar
+User=robopilot
+WorkingDirectory=/opt/robopilot/bin
+ExecStart=/usr/bin/java -jar /opt/robopilot/bin/robopilot-backend.jar
 Restart=always
 RestartSec=10
 StandardOutput=journal

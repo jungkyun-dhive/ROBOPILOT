@@ -59,6 +59,16 @@ echo "  소스 경로: $USE_DIR"
 echo "  배포 경로: $APP_DIR"
 echo "============================================"
 
+# ── 0. 시스템 사용자 생성 ───────────────────────────────────
+echo ""
+echo "■ [0/6] 시스템 사용자 확인"
+if ! id -u "$APP_USER" &>/dev/null; then
+  useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
+  echo "  ✓ 시스템 사용자 '$APP_USER' 생성됨"
+else
+  echo "  ✓ 시스템 사용자 '$APP_USER' 이미 존재"
+fi
+
 # ── 1. 소스 가져오기 ────────────────────────────────────────
 echo ""
 echo "■ [1/6] 소스 코드 확인"
