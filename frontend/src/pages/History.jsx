@@ -1,249 +1,195 @@
-import { useState, useEffect } from 'react';
-import { Clock, User, LogIn, LogOut, Plus, Edit, Trash2, Play, Square, Video, Search } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { auditLogApi } from '../utils/api';
-const mockAuditLogs = [
-  {
-    id: '1',
-    userId: 'user-admin-001',
-    username: '시스템 관리자',
-    companyId: null,
-    action: 'LOGIN',
-    entityType: 'USER',
-    entityId: 'user-admin-001',
-    description: '사용자가 로그인했습니다',
-    ipAddress: '192.168.1.100',
-    createdAt: '2026-01-07T10:30:00',
-  },
-  {
-    id: '2',
-    userId: 'user-fpt-001',
-    username: 'Nguyen Van A',
-    companyId: 'fpt-software-001',
-    action: 'CREATE',
-    entityType: 'ROBOT',
-    entityId: 'drone-fpt-hn-01',
-    description: '로봇 "Matrice-4E-HN01"을 추가했습니다',
-    ipAddress: '192.168.1.101',
-    createdAt: '2026-01-07T09:15:00',
-  },
+import { useState } from 'react';
+import { Search, MoreHorizontal } from 'lucide-react';
+
+const mockHistory = [
+  { id: 1, createdAt: '2026-04-09 10:03:13', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'bob', detections: 24 },
+  { id: 2, createdAt: '2026-04-09 10:02:23', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'bob', detections: 54 },
+  { id: 3, createdAt: '2026-04-09 09:39:38', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'bob', detections: 120 },
+  { id: 4, createdAt: '2026-04-09 09:23:54', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'bob', detections: 30 },
+  { id: 5, createdAt: '2026-04-09 09:18:39', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'sysadmin', detections: 567 },
+  { id: 6, createdAt: '2026-04-09 09:16:40', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'alice', detections: 29 },
+  { id: 7, createdAt: '2026-04-09 09:11:17', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'alice', detections: 29 },
+  { id: 8, createdAt: '2026-04-09 09:10:30', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'bob', detections: 0 },
+  { id: 9, createdAt: '2026-04-09 08:55:28', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'sysadmin', detections: 48 },
+  { id: 10, createdAt: '2026-04-09 08:53:59', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'bob', detections: 7 },
+  { id: 11, createdAt: '2026-04-09 08:40:12', company: 'FPT', site: 'Pham Van Bach', mission: 'PatrolMission', robot: 'DJI Matrice 4E Drone 1', operator: 'fpt.manager', detections: 33 },
+  { id: 12, createdAt: '2026-04-09 08:30:05', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'TestforGO2', robot: 'Unitree GO2', operator: 'sysadmin', detections: 88 },
+  { id: 13, createdAt: '2026-04-08 17:52:10', company: 'FPT', site: 'Duy Tan', mission: 'TestForDrone', robot: 'M4E Display Name', operator: 'bob', detections: 15 },
+  { id: 14, createdAt: '2026-04-08 16:44:33', company: '현대건설', site: '힐스테이트 도안2단지', mission: 'InspectionMission', robot: 'Unitree GO2', operator: 'alice', detections: 42 },
+  { id: 15, createdAt: '2026-04-08 15:30:00', company: 'FPT', site: 'Pham Van Bach', mission: 'PatrolMission', robot: 'DJI Matrice 4E Drone 1', operator: 'operator', detections: 0 },
 ];
 
-const actionLabels = {
-  LOGIN: '로그인',
-  LOGOUT: '로그아웃',
-  CREATE: '생성',
-  UPDATE: '수정',
-  DELETE: '삭제',
-  START: '시작',
-  STOP: '중지',
-  PLAY: '재생',
-};
-
-const entityTypeLabels = {
-  USER: '사용자',
-  COMPANY: '회사',
-  SITE: '현장',
-  MISSION: '미션',
-  ROBOT: '로봇',
-  TASK: '작업',
-  VIDEO: '영상',
-};
-
-const getActionIcon = (action) => {
-  switch (action) {
-    case 'LOGIN':
-      return <LogIn className="h-4 w-4" />;
-    case 'LOGOUT':
-      return <LogOut className="h-4 w-4" />;
-    case 'CREATE':
-      return <Plus className="h-4 w-4" />;
-    case 'UPDATE':
-      return <Edit className="h-4 w-4" />;
-    case 'DELETE':
-      return <Trash2 className="h-4 w-4" />;
-    case 'START':
-      return <Play className="h-4 w-4" />;
-    case 'STOP':
-      return <Square className="h-4 w-4" />;
-    case 'PLAY':
-      return <Video className="h-4 w-4" />;
-    default:
-      return <Clock className="h-4 w-4" />;
-  }
-};
-
-const getActionColor = (action) => {
-  switch (action) {
-    case 'LOGIN':
-      return 'bg-green-100 text-green-800';
-    case 'LOGOUT':
-      return 'bg-gray-100 text-gray-800';
-    case 'CREATE':
-      return 'bg-blue-100 text-blue-800';
-    case 'UPDATE':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'DELETE':
-      return 'bg-red-100 text-red-800';
-    case 'START':
-      return 'bg-green-100 text-green-800';
-    case 'STOP':
-      return 'bg-orange-100 text-orange-800';
-    case 'PLAY':
-      return 'bg-purple-100 text-purple-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 function History() {
-  const { user } = useAuth();
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    loadAuditLogs();
-  }, []);
+  const filtered = mockHistory.filter((row) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      row.company.toLowerCase().includes(term) ||
+      row.site.toLowerCase().includes(term) ||
+      row.mission.toLowerCase().includes(term) ||
+      row.robot.toLowerCase().includes(term) ||
+      row.operator.toLowerCase().includes(term);
 
-  const loadAuditLogs = async () => {
-    try {
-      setLoading(true);
-      const data = await auditLogApi.getAll();
-      setAuditLogs(data || []);
-    } catch (error) {
-      console.error('Failed to load audit logs:', error);
-      // Fallback to mock data if API fails
-      setAuditLogs(mockAuditLogs);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const matchesFrom = !dateFrom || row.createdAt >= dateFrom;
+    const matchesTo = !dateTo || row.createdAt <= dateTo + ' 23:59:59';
 
-  const filteredLogs = auditLogs.filter((log) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      log.username.toLowerCase().includes(searchLower) ||
-      log.description.toLowerCase().includes(searchLower) ||
-      actionLabels[log.action]?.toLowerCase().includes(searchLower) ||
-      entityTypeLabels[log.entityType]?.toLowerCase().includes(searchLower)
-    );
+    return matchesSearch && matchesFrom && matchesTo;
   });
 
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900">로딩 중...</h3>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">히스토리</h1>
-          <p className="text-sm text-gray-600">시스템 활동 이력</p>
-        </div>
+    <div className="p-6 bg-gray-50 min-h-full">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">히스토리</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {new Date().toLocaleString('ko-KR', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+          })} (KST, UTC+09:00)
+        </p>
       </div>
 
-      {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+      {/* Filter Bar */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-1.5">
           <input
-            type="text"
-            placeholder="사용자, 작업, 설명으로 검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            placeholder="From"
+          />
+          <span className="text-gray-400 text-sm">-</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            placeholder="To"
           />
         </div>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search History"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="pl-4 pr-9 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-52"
+          />
+          <button className="absolute right-2 top-1/2 -translate-y-1/2">
+            <Search className="h-4 w-4 text-gray-400" />
+          </button>
+        </div>
       </div>
 
-      {/* Timeline */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <div className="flow-root">
-            <ul className="-mb-8">
-              {filteredLogs.map((log, logIdx) => (
-                <li key={log.id}>
-                  <div className="relative pb-8">
-                    {logIdx !== filteredLogs.length - 1 ? (
-                      <span
-                        className="absolute top-5 left-5 -ml-px h-full w-0.5 bg-gray-200"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <div className="relative flex items-start space-x-3">
-                      <div>
-                        <div
-                          className={`relative px-2 py-2 flex items-center justify-center h-10 w-10 rounded-full ${getActionColor(
-                            log.action
-                          )}`}
-                        >
-                          {getActionIcon(log.action)}
-                        </div>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div>
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-900">{log.username}</span>
-                            <span className="text-gray-500 mx-2">·</span>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(
-                                log.action
-                              )}`}
-                            >
-                              {actionLabels[log.action] || log.action}
-                            </span>
-                            <span className="text-gray-500 mx-2">·</span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              {entityTypeLabels[log.entityType] || log.entityType}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm text-gray-700">{log.description}</p>
-                          <div className="mt-2 text-xs text-gray-500 flex items-center space-x-4">
-                            <span className="flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {formatDateTime(log.createdAt)}
-                            </span>
-                            {log.ipAddress && (
-                              <span>IP: {log.ipAddress}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                {['번호', '생성 일시', '회사명', '사이트명', '미션명', '로봇명', '작업자', '총 인식 건수'].map((col) => (
+                  <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 border-b border-gray-200 whitespace-nowrap">
+                    {!['번호'].includes(col) && <span className="mr-1 text-gray-300">⇅</span>}
+                    {col}
+                  </th>
+                ))}
+                <th className="px-4 py-3 border-b border-gray-200" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
+                    데이터가 없습니다
+                  </td>
+                </tr>
+              ) : (
+                paged.map((row, index) => (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{row.createdAt}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.company}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.site}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.mission}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.robot}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.operator}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{row.detections}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400">
+                      <button className="p-1 hover:bg-gray-100 rounded">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Empty State */}
-        {filteredLogs.length === 0 && (
-          <div className="text-center py-12">
-            <Clock className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">히스토리가 없습니다</h3>
-            <p className="mt-1 text-sm text-gray-500">아직 기록된 활동이 없습니다.</p>
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((p) => (
+              <button
+                key={p}
+                onClick={() => setCurrentPage(p)}
+                className={`w-7 h-7 text-xs rounded border ${
+                  currentPage === p
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <>
+                <span className="text-gray-400 text-xs px-1">...</span>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="w-7 h-7 text-xs rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
           </div>
-        )}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none"
+            >
+              {PAGE_SIZE_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s} / page</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
