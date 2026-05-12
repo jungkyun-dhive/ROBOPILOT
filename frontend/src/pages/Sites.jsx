@@ -110,6 +110,8 @@ function Sites() {
       const siteData = {
         ...formData,
         companyId: formData.companyId,
+        companyName: selectedCompany.name,
+        status: editingSite?.status || 'ACTIVE',
       };
 
       if (editingSite) {
