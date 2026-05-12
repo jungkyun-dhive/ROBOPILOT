@@ -30,6 +30,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
                 .requestMatchers("/dashboard/health").permitAll()
+                .requestMatchers("/error").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
