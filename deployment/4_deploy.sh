@@ -27,6 +27,12 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 source "$ENV_FILE"
 
+# ── 리눅스 유저 확인 및 생성 ────────────────────────────────
+if ! id -u "$APP_USER" &>/dev/null; then
+  echo "■ 리눅스 서비스 유저 생성: $APP_USER"
+  useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
+fi
+
 # ── 소스 위치 결정 ─────────────────────────────────────────
 # 스크립트가 있는 디렉토리의 상위 = 프로젝트 루트로 추정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -117,7 +123,11 @@ echo "■ [4/6] 파일 배포"
 # 백엔드 jar 복사
 mkdir -p "$APP_DIR/bin"
 cp "$JAR_PATH" "$APP_DIR/bin/robopilot-backend.jar"
-chown -R "$APP_USER:$APP_USER" "$APP_DIR/bin" 2>/dev/null || true
+chown -R "$APP_USER:$APP_USER" "$APP_DIR/bin"
+# 앱 루트도 접근 가능하도록 (심볼릭 링크 대상 포함)
+if [ -L "$APP_DIR" ]; then
+  chown -h "$APP_USER:$APP_USER" "$APP_DIR" 2>/dev/null || true
+fi
 
 # 프론트엔드 정적 파일 복사
 mkdir -p "$WEB_ROOT"
